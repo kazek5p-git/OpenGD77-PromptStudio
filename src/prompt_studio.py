@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.5"
+PROGRAM_VERSION = "0.4.6"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -69,12 +69,213 @@ VOICE_PROMPT_VARIANT_HELP = (
     "Retevis RT3 bez S nie jest tym samym co RT3S. GPS albo brak GPS w RT3S nie zmienia wyboru: użyj UV380-like."
 )
 
+VOICE_PROMPT_VARIANT_HELP_EN = (
+    "The program builds two VPR variants.\n"
+    "UV380-like: for color-screen and newer OpenGD77 radios, including TYT MD-UV380/MD-UV390, "
+    "Retevis RT3S, TYT MD-9600/Retevis RT-90, TYT MD-2017/Retevis RT-82, and Baofeng DM-1701/Retevis RT-84.\n"
+    "Monochrome: for the older monochrome-screen family, including Radioddity GD-77/GD-77S, "
+    "Baofeng DM-1801/DM-1801A, and Baofeng RD-5R.\n"
+    "Retevis RT3 without S is not the same radio as RT3S. GPS or no GPS in RT3S does not change the choice: use UV380-like."
+)
+
+UI_TRANSLATIONS_EN = {
+    "dostępne GUI": "accessible GUI",
+    "Projekt": "Project",
+    "Mowa": "Speech",
+    "Opcje": "Options",
+    "Praca": "Work",
+    "Aktualizacja i pomoc": "Update and help",
+    "Pliki, tryb pracy, profile ustawien i podstawowe operacje.": "Files, mode, settings profiles, and basic operations.",
+    "Zrodlo mowy, dodatek NVDA i RHVoice.": "Speech source, NVDA add-on, and RHVoice.",
+    "Foldery, tempo, wysokosc glosu i opcje audio.": "Folders, tempo, voice pitch, and audio options.",
+    "Uruchamianie, postep i log dzialania buildera.": "Running, progress, and builder log.",
+    "Aktualizacja z GitHuba, pomoc i informacje o autorze.": "GitHub update, help, and author information.",
+    "Zakladki": "Tabs",
+    "Zakladki:": "Tabs:",
+    "Obszar aktywnej zakladki": "Active tab area",
+    "Zawartosc aktualnie wybranej zakladki.": "Content of the currently selected tab.",
+    "Poprzednia": "Previous",
+    "Nastepna": "Next",
+    "Poprzednia zakladka": "Previous tab",
+    "Nastepna zakladka": "Next tab",
+    "Przejdz do poprzedniej zakladki programu.": "Go to the previous program tab.",
+    "Przejdz do nastepnej zakladki programu.": "Go to the next program tab.",
+    "Tryb pracy": "Mode",
+    "Tryb ręczny": "Manual mode",
+    "Tryb ręczny. Wybierasz wordlistę, głos, port i operacje.": "Manual mode. You choose the wordlist, voice, port, and operations.",
+    "Plik konfiguracyjny CSV": "CSV configuration file",
+    "Tryb pliku konfiguracyjnego CSV. Builder wykona operacje zapisane w CSV.": "CSV configuration file mode. The builder runs the operations saved in the CSV file.",
+    "Język interfejsu": "Interface language",
+    "Język:": "Language:",
+    "Polski": "Polish",
+    "Angielski": "English",
+    "Wybierz język programu. Zmiana zostanie zastosowana po ponownym uruchomieniu.": "Choose the program language. The change is applied after restarting the program.",
+    "Zapisano język interfejsu. Uruchom program ponownie, aby przeładować wszystkie napisy.": "Interface language saved. Restart the program to reload all labels.",
+    "Profile ustawien": "Settings profiles",
+    "Profil:": "Profile:",
+    "Profil ustawien": "Settings profile",
+    "Nazwa profilu ustawien do zapisania albo wczytania.": "Settings profile name to save or load.",
+    "Zapisz profil": "Save profile",
+    "Wczytaj profil": "Load profile",
+    "Usun profil": "Delete profile",
+    "Folder profili": "Profiles folder",
+    "Zapisz profil ustawien": "Save settings profile",
+    "Wczytaj profil ustawien": "Load settings profile",
+    "Usun profil ustawien": "Delete settings profile",
+    "Otworz folder profili": "Open profiles folder",
+    "Konfiguracja CSV": "CSV configuration",
+    "ścieżka do pliku konfiguracyjnego CSV.": "Path to the CSV configuration file.",
+    "Wybierz...": "Browse...",
+    "Wybierz plik konfiguracyjny CSV": "Choose CSV configuration file",
+    "Wybierz plik konfiguracyjny": "Choose configuration file",
+    "Plik konfiguracyjny:": "Configuration file:",
+    "Wordlist CSV": "Wordlist CSV",
+    "Plik CSV z kolumnami promptów.": "CSV file with prompt columns.",
+    "Wybierz wordlist CSV": "Choose wordlist CSV",
+    "Nazwa głosu": "Voice name",
+    "Nazwa głosu i folderu na pliki audio.": "Voice name and audio folder name.",
+    "Nazwa głosu:": "Voice name:",
+    "Plik wynikowy VPR": "Output VPR file",
+    "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome. Poniżej jest opis, dla których rodzin radii używać danego wariantu.": "Base VPR file name. The program creates UV380-like and monochrome variants. The note below explains which radio families use each variant.",
+    "Wybierz plik wynikowy VPR": "Choose output VPR file",
+    "Wybierz nazwę pliku VPR": "Choose VPR file name",
+    "Plik wynikowy VPR:": "Output VPR file:",
+    "Informacja o wariantach VPR": "VPR variant information",
+    "Port COM radia:": "Radio COM port:",
+    "Port COM radia": "Radio COM port",
+    "Port COM radia OpenGD77, na przykład COM5.": "OpenGD77 radio COM port, for example COM5.",
+    "Odśwież porty": "Refresh ports",
+    "Lista wykrytych portów": "Detected ports list",
+    "Lista wykrytych portów. Strzałkami wybierz port.": "Detected ports list. Use arrow keys to choose a port.",
+    "Pobierz / syntezuj audio": "Download / synthesize audio",
+    "Pobierz lub syntezuj audio": "Download or synthesize audio",
+    "Koduj AMBE w radiu": "Encode AMBE in radio",
+    "Zbuduj VPR": "Build VPR",
+    "Zbuduj plik VPR": "Build VPR file",
+    "Źródło mowy przy pobieraniu": "Speech source for download",
+    "Źródło mowy TTSMP3.com": "TTSMP3.com speech source",
+    "Źródło mowy: internetowa usługa TTSMP3.": "Speech source: online TTSMP3 service.",
+    "RHVoice z dodatku NVDA": "RHVoice from NVDA add-on",
+    "Źródło mowy RHVoice z dodatku NVDA": "RHVoice speech source from NVDA add-on",
+    "Źródło mowy: lokalny głos RHVoice z dodatku NVDA.": "Speech source: local RHVoice voice from an NVDA add-on.",
+    "Plik dodatku NVDA": "NVDA add-on file",
+    "Plik .nvda-addon zawierający głos RHVoice.": ".nvda-addon file containing an RHVoice voice.",
+    "Wybierz dodatek NVDA": "Choose NVDA add-on",
+    "Dodatek NVDA:": "NVDA add-on:",
+    "Wybierz dodatek NVDA z głosem RHVoice": "Choose NVDA add-on with RHVoice voice",
+    "Opcje": "Options",
+    "Folder roboczy": "Working folder",
+    "Folder roboczy dla plików tymczasowych i ścieżek względnych.": "Working folder for temporary files and relative paths.",
+    "Wybierz folder roboczy": "Choose working folder",
+    "Folder roboczy:": "Working folder:",
+    "Głośność dB:": "Volume dB:",
+    "Głośność dB": "Volume dB",
+    "Zmiana głośności w decybelach.": "Volume change in decibels.",
+    "Tempo:": "Tempo:",
+    "Tempo": "Tempo",
+    "Tempo audio od 0.5 do 2.": "Audio tempo from 0.5 to 2.",
+    "Tempo liter/cyfr:": "Letter/digit tempo:",
+    "Tempo liter i cyfr": "Letter and digit tempo",
+    "Osobne tempo dla pojedynczych liter, cyfr, spacji i kropki. Puste oznacza tempo zwykłe.": "Separate tempo for single letters, digits, space, and dot. Empty means normal tempo.",
+    "Alias tempa:": "Tempo alias:",
+    "Alias tempa": "Tempo alias",
+    "Opcjonalny alias tempa używany w nazwie pliku.": "Optional tempo alias used in the file name.",
+    "Wysokość RHVoice:": "RHVoice pitch:",
+    "Wysokość RHVoice": "RHVoice pitch",
+    "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos.": "RHVoice voice pitch. 1.0 is normal; a lower value lowers the voice.",
+    "Nadpisuj istniejące pliki": "Overwrite existing files",
+    "Usuń ciszę z początku": "Remove leading silence",
+    "Uruchom Alt+R": "Run Alt+R",
+    "Uruchom builder": "Run builder",
+    "Zatrzymaj Alt+S": "Stop Alt+S",
+    "Zatrzymaj builder": "Stop builder",
+    "Test zależności": "Dependency test",
+    "Otwórz folder": "Open folder",
+    "Otwórz folder roboczy": "Open working folder",
+    "Wyczyść log": "Clear log",
+    "Zamknij": "Close",
+    "Zamknij program": "Close program",
+    "Status i log": "Status and log",
+    "Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić.": "Ready. Choose files and press Alt+R to run.",
+    "Status programu": "Program status",
+    "Pasek postępu pracy": "Work progress bar",
+    "Pasek postępu pracy buildera.": "Builder work progress bar.",
+    "Postęp pracy": "Work progress",
+    "Postęp pracy: 0 procent": "Work progress: 0 percent",
+    "Procent i etap aktualnej pracy buildera.": "Percent and current builder stage.",
+    "Log działania buildera": "Builder log",
+    "Log działania buildera.": "Builder log.",
+    "Aktualizacja, pomoc i autor": "Update, help, and author",
+    "Autor": "Author",
+    "Zrodlo aktualizacji": "Update source",
+    "Informacje o programie": "Program information",
+    "Sprawdz aktualizacje": "Check for updates",
+    "Sprawdz aktualizacje na GitHub": "Check for GitHub updates",
+    "Pobierz i zainstaluj": "Download and install",
+    "Pobierz i zainstaluj najnowsza wersje z GitHub": "Download and install the latest version from GitHub",
+    "Otworz strone GitHub Releases": "Open GitHub Releases page",
+    "Otworz repozytorium GitHub": "Open GitHub repository",
+    "Pomoc": "Help",
+    "Otworz pomoc programu": "Open program help",
+    "O programie": "About",
+    "Informacje o programie i autorze": "Program and author information",
+    "Status aktualizacji": "Update status",
+    "Status sprawdzania i pobierania aktualizacji z GitHuba.": "GitHub update check and download status.",
+    "Aktualizacja: nie sprawdzano jeszcze GitHuba.": "Update: GitHub has not been checked yet.",
+    "Dodatek NVDA": "NVDA add-on",
+    "Profile": "Profiles",
+    "Wybierz profil ustawien.": "Choose a settings profile.",
+    "Nie znaleziono profilu: ": "Profile not found: ",
+    "Dokumentacja jest w repozytorium GitHub oraz w folderze docs przy wersji zrodlowej.": "Documentation is available in the GitHub repository and in the docs folder in the source version.",
+    "Log wyczyszczony.": "Log cleared.",
+    "Aktualizacja": "Update",
+    "Odświeżono listę portów. Wpisz port ręcznie albo wybierz go z listy.": "Port list refreshed. Type the port manually or choose it from the list.",
+}
+
+
+def normalizeUiLanguage(value):
+    value = (value or "").strip().lower()
+    if value in ("pl", "en"):
+        return value
+    return "pl"
+
+
+def translateUiText(text, language):
+    if language == "en":
+        return UI_TRANSLATIONS_EN.get(text, text)
+    return text
+
+
+def voicePromptVariantHelp(language="pl"):
+    return VOICE_PROMPT_VARIANT_HELP_EN if normalizeUiLanguage(language) == "en" else VOICE_PROMPT_VARIANT_HELP
+
 def profilesDir():
     return os.path.join(appUserDataDir(), "profiles")
 
 
 def updatesDir():
     return os.path.join(appUserDataDir(), "updates")
+
+
+def settingsPath():
+    return os.path.join(appUserDataDir(), "settings.json")
+
+
+def loadAppSettings():
+    try:
+        with open(settingsPath(), "r", encoding="utf-8") as f:
+            data = json.load(f)
+        if isinstance(data, dict):
+            return data
+    except Exception:
+        pass
+    return {}
+
+
+def saveAppSettings(data):
+    ensureDir(appUserDataDir())
+    with open(settingsPath(), "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 
 def ensureDir(path):
@@ -1398,6 +1599,11 @@ def run_wx_gui():
         "lastAnnounced": -10,
     }
     portDevices = []
+    appSettings = loadAppSettings()
+    uiLanguage = normalizeUiLanguage(appSettings.get("ui_language"))
+
+    def trText(text):
+        return translateUiText(text, uiLanguage)
 
     def consolePythonExecutable():
         exe = sys.executable
@@ -1434,16 +1640,20 @@ def run_wx_gui():
                 return (wx.ACC_OK, self._helpText)
             return (wx.ACC_NOT_IMPLEMENTED, "")
 
-    frame = wx.Frame(None, title=PROGRAM_NAME + " - dostępne GUI", size=(1040, 820))
+    frame = wx.Frame(None, title=PROGRAM_NAME + " - " + trText("dostępne GUI"), size=(1040, 820))
     frame.SetMinSize((920, 700))
     panel = wx.ScrolledWindow(frame)
     panel.SetScrollRate(8, 8)
     mainSizer = wx.BoxSizer(wx.VERTICAL)
     panel.SetSizer(mainSizer)
+    statusWindow = {"ctrl": None}
 
     def setStatus(text):
-        statusText.SetLabel(text)
-        statusText.Wrap(-1)
+        text = trText(text)
+        ctrl = statusWindow.get("ctrl")
+        if ctrl is not None:
+            ctrl.SetLabel(text)
+            ctrl.Wrap(-1)
         frame.SetStatusText(text)
 
     def appendLog(text):
@@ -1462,7 +1672,10 @@ def run_wx_gui():
     def setProgress(percent, detail="", force=False):
         percent = max(0, min(100, int(percent)))
         progressState["percent"] = percent
-        label = "Postęp pracy: " + str(percent) + " procent"
+        if uiLanguage == "en":
+            label = "Work progress: " + str(percent) + " percent"
+        else:
+            label = "Postęp pracy: " + str(percent) + " procent"
         if detail:
             label += ". " + detail
         try:
@@ -1564,15 +1777,26 @@ def run_wx_gui():
             updateOperationProgress("build", progressState["buildDone"], 2, "Budowanie VPR " + str(min(progressState["buildDone"], 2)) + " z 2.")
 
     def bindStatus(ctrl, text):
+        text = trText(text)
         ctrl.SetToolTip(text)
         ctrl.SetHelpText(text)
         ctrl.Bind(wx.EVT_SET_FOCUS, lambda event, msg=text: (setStatus(msg), event.Skip()))
         return ctrl
 
     def named(ctrl, name, helpText=None):
+        try:
+            labelText = ctrl.GetLabel()
+            translatedLabel = trText(labelText)
+            if translatedLabel != labelText:
+                ctrl.SetLabel(translatedLabel)
+        except Exception:
+            pass
+        name = trText(name)
         ctrl.SetName(name)
         if helpText is None:
             helpText = name
+        else:
+            helpText = trText(helpText)
         try:
             accessible = FixedNameAccessible(ctrl, name, helpText)
             ctrl.SetAccessible(accessible)
@@ -1583,7 +1807,7 @@ def run_wx_gui():
 
     def addRow(parentSizer, labelText, ctrl, browseButton=None):
         row = wx.BoxSizer(wx.HORIZONTAL)
-        label = wx.StaticText(ctrl.GetParent(), label=labelText)
+        label = wx.StaticText(ctrl.GetParent(), label=trText(labelText))
         label.SetMinSize((210, -1))
         row.Add(label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         row.Add(ctrl, 1, wx.EXPAND | wx.RIGHT, 8)
@@ -1596,7 +1820,7 @@ def run_wx_gui():
         initialDir = os.path.dirname(initialPath) if initialPath else workDirCtrl.GetValue().strip()
         initialFile = os.path.basename(initialPath) if initialPath else ""
         style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT if save else wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-        with wx.FileDialog(frame, title, defaultDir=initialDir or scriptDir, defaultFile=initialFile, wildcard=wildcard, style=style) as dialog:
+        with wx.FileDialog(frame, trText(title), defaultDir=initialDir or scriptDir, defaultFile=initialFile, wildcard=wildcard, style=style) as dialog:
             if dialog.ShowModal() == wx.ID_OK:
                 return dialog.GetPath()
         return ""
@@ -1615,7 +1839,7 @@ def run_wx_gui():
 
     def browseFolder(ctrl, title):
         initial = ctrl.GetValue().strip() or scriptDir
-        with wx.DirDialog(frame, title, defaultPath=initial, style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST) as dialog:
+        with wx.DirDialog(frame, trText(title), defaultPath=initial, style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST) as dialog:
             if dialog.ShowModal() == wx.ID_OK:
                 ctrl.SetValue(dialog.GetPath())
 
@@ -1633,7 +1857,7 @@ def run_wx_gui():
             setStatus("Wybrano dodatek RHVoice: " + info.get("name", "") + " " + info.get("language", ""))
         except Exception as err:
             setStatus("Dodatek NVDA nie jest obsługiwanym głosem RHVoice.")
-            wx.MessageBox(str(err), "Dodatek NVDA", wx.OK | wx.ICON_ERROR, frame)
+            wx.MessageBox(str(err), trText("Dodatek NVDA"), wx.OK | wx.ICON_ERROR, frame)
 
     def refreshPorts():
         portDevices.clear()
@@ -1699,7 +1923,7 @@ def run_wx_gui():
         appendLog("Test zależności:")
         for message in messages:
             appendLog("  " + message)
-        wx.MessageBox("\n".join(messages), "Test zależności", wx.OK | wx.ICON_INFORMATION, frame)
+        wx.MessageBox("\n".join(messages), trText("Test zależności"), wx.OK | wx.ICON_INFORMATION, frame)
 
     def buildCommand():
         args = []
@@ -1941,11 +2165,11 @@ def run_wx_gui():
     def loadProfile(event=None):
         name = profileCombo.GetValue().strip()
         if not name:
-            wx.MessageBox("Wybierz profil ustawien.", "Profile", wx.OK | wx.ICON_INFORMATION, frame)
+            wx.MessageBox(trText("Wybierz profil ustawien."), trText("Profile"), wx.OK | wx.ICON_INFORMATION, frame)
             return
         path = profilePath(name)
         if not os.path.exists(path):
-            wx.MessageBox("Nie znaleziono profilu: " + name, "Profile", wx.OK | wx.ICON_ERROR, frame)
+            wx.MessageBox(trText("Nie znaleziono profilu: ") + name, trText("Profile"), wx.OK | wx.ICON_ERROR, frame)
             return
         with open(path, "r", encoding="utf-8") as f:
             applySettingsProfile(json.load(f))
@@ -2048,11 +2272,11 @@ def run_wx_gui():
         if os.path.exists(docPath):
             os.startfile(docPath)
         else:
-            wx.MessageBox("Dokumentacja jest w repozytorium GitHub oraz w folderze docs przy wersji zrodlowej.", "Pomoc", wx.OK | wx.ICON_INFORMATION, frame)
+            wx.MessageBox(trText("Dokumentacja jest w repozytorium GitHub oraz w folderze docs przy wersji zrodlowej."), trText("Pomoc"), wx.OK | wx.ICON_INFORMATION, frame)
             webbrowser.open(GITHUB_REPO_URL)
 
     def showAbout(event=None):
-        wx.MessageBox(PROGRAM_NAME + " " + PROGRAM_VERSION + "\nAutor: kazek5p\nGitHub: " + GITHUB_REPO_URL, "O programie", wx.OK | wx.ICON_INFORMATION, frame)
+        wx.MessageBox(PROGRAM_NAME + " " + PROGRAM_VERSION + "\n" + trText("Autor") + ": kazek5p\nGitHub: " + GITHUB_REPO_URL, trText("O programie"), wx.OK | wx.ICON_INFORMATION, frame)
 
     def refreshModeState(event=None):
         configMode = modeConfigRadio.GetValue()
@@ -2060,7 +2284,10 @@ def run_wx_gui():
             widget.Enable(configMode)
         for widget in manualWidgets:
             widget.Enable(not configMode)
-        setStatus("Tryb: " + ("plik konfiguracyjny CSV" if configMode else "ręczny"))
+        if uiLanguage == "en":
+            setStatus("Mode: " + ("CSV configuration file" if configMode else "manual"))
+        else:
+            setStatus("Tryb: " + ("plik konfiguracyjny CSV" if configMode else "ręczny"))
 
     def onClose(event):
         proc = currentProcess["proc"]
@@ -2073,15 +2300,19 @@ def run_wx_gui():
 
     frame.CreateStatusBar()
 
-    tabTitles = ["Projekt", "Mowa", "Opcje", "Praca", "Aktualizacja i pomoc"]
-    tabNavBox = wx.StaticBoxSizer(wx.HORIZONTAL, panel, "Zakladki")
-    tabNavLabel = wx.StaticText(panel, label="Zakladki:")
+    tabTitles = [trText("Projekt"), trText("Mowa"), trText("Opcje"), trText("Praca"), trText("Aktualizacja i pomoc")]
+    tabNavBox = wx.StaticBoxSizer(wx.HORIZONTAL, panel, trText("Zakladki"))
+    tabNavLabel = wx.StaticText(panel, label=trText("Zakladki:"))
     tabNavLabel.SetMinSize((90, -1))
     tabNavBox.Add(tabNavLabel, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     def tabPositionText(index):
+        if uiLanguage == "en":
+            return str(index + 1) + " of " + str(len(tabTitles))
         return str(index + 1) + " z " + str(len(tabTitles))
 
     def tabAccessibleName(index):
+        if uiLanguage == "en":
+            return "Tab " + tabPositionText(index) + ": " + tabTitles[index]
         return "Zakladka " + tabPositionText(index) + ": " + tabTitles[index]
 
     tabButtons = []
@@ -2100,11 +2331,13 @@ def run_wx_gui():
     mainSizer.Add(tabNavBox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
 
     notebook = wx.Simplebook(panel)
-    notebook.SetName("Obszar aktywnej zakladki")
-    notebook.SetToolTip("Zawartosc aktualnie wybranej zakladki.")
+    notebook.SetName(trText("Obszar aktywnej zakladki"))
+    notebook.SetToolTip(trText("Zawartosc aktualnie wybranej zakladki."))
     mainSizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 6)
 
     def makePage(title, helpText):
+        title = trText(title)
+        helpText = trText(helpText)
         page = wx.Panel(notebook)
         page.SetName(title)
         page.SetToolTip(helpText)
@@ -2179,7 +2412,7 @@ def run_wx_gui():
     def focusInitialTabStrip():
         selectTab(0, True)
 
-    modeBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Tryb pracy")
+    modeBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, trText("Tryb pracy"))
     modeRow = wx.BoxSizer(wx.HORIZONTAL)
     modeManualRadio = named(wx.RadioButton(projectPage, label="Tryb ręczny", style=wx.RB_GROUP), "Tryb ręczny", "Tryb ręczny. Wybierasz wordlistę, głos, port i operacje.")
     modeConfigRadio = named(wx.RadioButton(projectPage, label="Plik konfiguracyjny CSV"), "Plik konfiguracyjny CSV", "Tryb pliku konfiguracyjnego CSV. Builder wykona operacje zapisane w CSV.")
@@ -2189,9 +2422,28 @@ def run_wx_gui():
     modeBox.Add(modeRow, 0, wx.ALL, 4)
     projectSizer.Add(modeBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    profileBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Profile ustawien")
+    languageBox = wx.StaticBoxSizer(wx.HORIZONTAL, projectPage, trText("Język interfejsu"))
+    languageBox.Add(wx.StaticText(projectPage, label=trText("Język:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    languageChoice = named(wx.Choice(projectPage, choices=[trText("Polski"), trText("Angielski")]), "Język interfejsu", "Wybierz język programu. Zmiana zostanie zastosowana po ponownym uruchomieniu.")
+    languageChoice.SetSelection(1 if uiLanguage == "en" else 0)
+    languageBox.Add(languageChoice, 0, wx.ALIGN_CENTER_VERTICAL)
+    projectSizer.Add(languageBox, 0, wx.EXPAND | wx.ALL, 6)
+
+    def onLanguageChanged(event=None):
+        selectedLanguage = "en" if languageChoice.GetSelection() == 1 else "pl"
+        settings = loadAppSettings()
+        settings["ui_language"] = selectedLanguage
+        saveAppSettings(settings)
+        message = translateUiText("Zapisano język interfejsu. Uruchom program ponownie, aby przeładować wszystkie napisy.", selectedLanguage)
+        title = translateUiText("Język interfejsu", selectedLanguage)
+        setStatus(message)
+        wx.MessageBox(message, title, wx.OK | wx.ICON_INFORMATION, frame)
+
+    languageChoice.Bind(wx.EVT_CHOICE, onLanguageChanged)
+
+    profileBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, trText("Profile ustawien"))
     profileRow = wx.BoxSizer(wx.HORIZONTAL)
-    profileRow.Add(wx.StaticText(projectPage, label="Profil:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    profileRow.Add(wx.StaticText(projectPage, label=trText("Profil:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     profileCombo = named(wx.ComboBox(projectPage, style=wx.CB_DROPDOWN, size=(220, -1)), "Profil ustawien", "Nazwa profilu ustawien do zapisania albo wczytania.")
     saveProfileButton = named(wx.Button(projectPage, label="Zapisz profil"), "Zapisz profil ustawien")
     loadProfileButton = named(wx.Button(projectPage, label="Wczytaj profil"), "Wczytaj profil ustawien")
@@ -2202,14 +2454,14 @@ def run_wx_gui():
     profileBox.Add(profileRow, 0, wx.EXPAND | wx.ALL, 4)
     projectSizer.Add(profileBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    configBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Konfiguracja CSV")
+    configBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, trText("Konfiguracja CSV"))
     configCtrl = named(wx.TextCtrl(projectPage), "Plik konfiguracyjny CSV", "ścieżka do pliku konfiguracyjnego CSV.")
     configBrowse = named(wx.Button(projectPage, label="Wybierz..."), "Wybierz plik konfiguracyjny CSV")
     configBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(configCtrl, "Wybierz plik konfiguracyjny", "CSV (*.csv)|*.csv|Wszystkie pliki (*.*)|*.*", True))
     addRow(configBox, "Plik konfiguracyjny:", configCtrl, configBrowse)
     projectSizer.Add(configBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    manualBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Tryb ręczny")
+    manualBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, trText("Tryb ręczny"))
     wordlistCtrl = named(wx.TextCtrl(projectPage), "Wordlist CSV", "Plik CSV z kolumnami promptów.")
     wordlistBrowse = named(wx.Button(projectPage, label="Wybierz..."), "Wybierz wordlist CSV")
     wordlistBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(wordlistCtrl, "Wybierz wordlist CSV", "CSV (*.csv)|*.csv|Wszystkie pliki (*.*)|*.*"))
@@ -2223,11 +2475,12 @@ def run_wx_gui():
     outputBrowse.Bind(wx.EVT_BUTTON, lambda event: browseOutput())
     addRow(manualBox, "Plik wynikowy VPR:", outputCtrl, outputBrowse)
 
-    variantInfoCtrl = named(wx.TextCtrl(projectPage, value=VOICE_PROMPT_VARIANT_HELP, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 110)), "Informacja o wariantach VPR", VOICE_PROMPT_VARIANT_HELP)
+    variantInfoText = voicePromptVariantHelp(uiLanguage)
+    variantInfoCtrl = named(wx.TextCtrl(projectPage, value=variantInfoText, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 110)), "Informacja o wariantach VPR", variantInfoText)
     manualBox.Add(variantInfoCtrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
 
     serialRow = wx.BoxSizer(wx.HORIZONTAL)
-    serialLabel = wx.StaticText(projectPage, label="Port COM radia:")
+    serialLabel = wx.StaticText(projectPage, label=trText("Port COM radia:"))
     serialLabel.SetMinSize((210, -1))
     serialCtrl = named(wx.TextCtrl(projectPage, size=(120, -1)), "Port COM radia", "Port COM radia OpenGD77, na przykład COM5.")
     refreshPortsButton = named(wx.Button(projectPage, label="Odśwież porty"), "Odśwież porty")
@@ -2250,7 +2503,7 @@ def run_wx_gui():
         opsRow.Add(ctrl, 0, wx.RIGHT, 18)
     manualBox.Add(opsRow, 0, wx.ALL, 4)
 
-    sourceBox = wx.StaticBoxSizer(wx.VERTICAL, speechPage, "Źródło mowy przy pobieraniu")
+    sourceBox = wx.StaticBoxSizer(wx.VERTICAL, speechPage, trText("Źródło mowy przy pobieraniu"))
     sourceRow = wx.BoxSizer(wx.HORIZONTAL)
     speechTtsRadio = named(wx.RadioButton(speechPage, label="TTSMP3.com", style=wx.RB_GROUP), "Źródło mowy TTSMP3.com", "Źródło mowy: internetowa usługa TTSMP3.")
     speechNvdaRadio = named(wx.RadioButton(speechPage, label="RHVoice z dodatku NVDA"), "Źródło mowy RHVoice z dodatku NVDA", "Źródło mowy: lokalny głos RHVoice z dodatku NVDA.")
@@ -2267,29 +2520,29 @@ def run_wx_gui():
     speechSizer.Add(sourceBox, 0, wx.EXPAND | wx.ALL, 6)
     projectSizer.Add(manualBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    optionsBox = wx.StaticBoxSizer(wx.VERTICAL, optionsPage, "Opcje")
+    optionsBox = wx.StaticBoxSizer(wx.VERTICAL, optionsPage, trText("Opcje"))
     workDirCtrl = named(wx.TextCtrl(optionsPage, value=defaultWorkDir()), "Folder roboczy", "Folder roboczy dla plików tymczasowych i ścieżek względnych.")
     workDirBrowse = named(wx.Button(optionsPage, label="Wybierz..."), "Wybierz folder roboczy")
     workDirBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFolder(workDirCtrl, "Wybierz folder roboczy"))
     addRow(optionsBox, "Folder roboczy:", workDirCtrl, workDirBrowse)
 
     audioRow = wx.BoxSizer(wx.HORIZONTAL)
-    audioRow.Add(wx.StaticText(optionsPage, label="Głośność dB:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    audioRow.Add(wx.StaticText(optionsPage, label=trText("Głośność dB:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     gainCtrl = named(wx.TextCtrl(optionsPage, value=gain, size=(70, -1)), "Głośność dB", "Zmiana głośności w decybelach.")
     audioRow.Add(gainCtrl, 0, wx.RIGHT, 20)
-    audioRow.Add(wx.StaticText(optionsPage, label="Tempo:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    audioRow.Add(wx.StaticText(optionsPage, label=trText("Tempo:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     tempoCtrl = named(wx.TextCtrl(optionsPage, value=atempo, size=(70, -1)), "Tempo", "Tempo audio od 0.5 do 2.")
     audioRow.Add(tempoCtrl, 0, wx.RIGHT, 20)
-    audioRow.Add(wx.StaticText(optionsPage, label="Tempo liter/cyfr:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    audioRow.Add(wx.StaticText(optionsPage, label=trText("Tempo liter/cyfr:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     compactTempoCtrl = named(wx.TextCtrl(optionsPage, value=compactAtempo, size=(70, -1)), "Tempo liter i cyfr", "Osobne tempo dla pojedynczych liter, cyfr, spacji i kropki. Puste oznacza tempo zwykłe.")
     audioRow.Add(compactTempoCtrl, 0, wx.RIGHT, 20)
     optionsBox.Add(audioRow, 0, wx.ALL, 4)
 
     audioRow2 = wx.BoxSizer(wx.HORIZONTAL)
-    audioRow2.Add(wx.StaticText(optionsPage, label="Alias tempa:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    audioRow2.Add(wx.StaticText(optionsPage, label=trText("Alias tempa:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     aliasCtrl = named(wx.TextCtrl(optionsPage, size=(120, -1)), "Alias tempa", "Opcjonalny alias tempa używany w nazwie pliku.")
     audioRow2.Add(aliasCtrl, 0, wx.RIGHT, 20)
-    audioRow2.Add(wx.StaticText(optionsPage, label="Wysokość RHVoice:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    audioRow2.Add(wx.StaticText(optionsPage, label=trText("Wysokość RHVoice:")), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     pitchCtrl = named(wx.TextCtrl(optionsPage, value=rhvoiceRelativePitch, size=(70, -1)), "Wysokość RHVoice", "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos.")
     audioRow2.Add(pitchCtrl, 0)
     optionsBox.Add(audioRow2, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
@@ -2314,14 +2567,15 @@ def run_wx_gui():
         buttonsRow.Add(ctrl, 0, wx.RIGHT, 8)
     runSizer.Add(buttonsRow, 0, wx.EXPAND | wx.ALL, 6)
 
-    statusBox = wx.StaticBoxSizer(wx.VERTICAL, runPage, "Status i log")
-    statusText = wx.StaticText(runPage, label="Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić.")
-    statusText.SetName("Status programu")
+    statusBox = wx.StaticBoxSizer(wx.VERTICAL, runPage, trText("Status i log"))
+    statusText = wx.StaticText(runPage, label=trText("Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić."))
+    statusWindow["ctrl"] = statusText
+    statusText.SetName(trText("Status programu"))
     statusBox.Add(statusText, 0, wx.EXPAND | wx.ALL, 4)
     progressRow = wx.BoxSizer(wx.HORIZONTAL)
     progressGauge = named(wx.Gauge(runPage, range=100, style=wx.GA_HORIZONTAL), "Pasek postępu pracy", "Pasek postępu pracy buildera.")
     progressGauge.SetValue(0)
-    progressTextCtrl = named(wx.TextCtrl(runPage, value="Postęp pracy: 0 procent", style=wx.TE_READONLY, size=(280, -1)), "Postęp pracy", "Procent i etap aktualnej pracy buildera.")
+    progressTextCtrl = named(wx.TextCtrl(runPage, value=trText("Postęp pracy: 0 procent"), style=wx.TE_READONLY, size=(280, -1)), "Postęp pracy", "Procent i etap aktualnej pracy buildera.")
     progressRow.Add(progressGauge, 1, wx.EXPAND | wx.RIGHT, 8)
     progressRow.Add(progressTextCtrl, 0, wx.EXPAND)
     statusBox.Add(progressRow, 0, wx.EXPAND | wx.ALL, 4)
@@ -2329,9 +2583,9 @@ def run_wx_gui():
     statusBox.Add(logCtrl, 1, wx.EXPAND | wx.ALL, 4)
     runSizer.Add(statusBox, 1, wx.EXPAND | wx.ALL, 6)
 
-    updateInfoBox = wx.StaticBoxSizer(wx.VERTICAL, updatePage, "Aktualizacja, pomoc i autor")
-    updateInfoText = wx.StaticText(updatePage, label=PROGRAM_NAME + " " + PROGRAM_VERSION + "\nAutor: kazek5p\nZrodlo aktualizacji: " + GITHUB_RELEASES_URL)
-    updateInfoText.SetName("Informacje o programie")
+    updateInfoBox = wx.StaticBoxSizer(wx.VERTICAL, updatePage, trText("Aktualizacja, pomoc i autor"))
+    updateInfoText = wx.StaticText(updatePage, label=PROGRAM_NAME + " " + PROGRAM_VERSION + "\n" + trText("Autor") + ": kazek5p\n" + trText("Zrodlo aktualizacji") + ": " + GITHUB_RELEASES_URL)
+    updateInfoText.SetName(trText("Informacje o programie"))
     updateInfoBox.Add(updateInfoText, 0, wx.EXPAND | wx.ALL, 4)
     updateButtons = wx.BoxSizer(wx.HORIZONTAL)
     checkUpdateButton = named(wx.Button(updatePage, label="Sprawdz aktualizacje"), "Sprawdz aktualizacje na GitHub")
@@ -2343,7 +2597,7 @@ def run_wx_gui():
     for ctrl in (checkUpdateButton, installUpdateButton, releasesButton, githubButton, helpButton, aboutButton):
         updateButtons.Add(ctrl, 0, wx.RIGHT, 8)
     updateInfoBox.Add(updateButtons, 0, wx.EXPAND | wx.ALL, 4)
-    updateStatusCtrl = named(wx.TextCtrl(updatePage, value="Aktualizacja: nie sprawdzano jeszcze GitHuba.", style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 220)), "Status aktualizacji", "Status sprawdzania i pobierania aktualizacji z GitHuba.")
+    updateStatusCtrl = named(wx.TextCtrl(updatePage, value=trText("Aktualizacja: nie sprawdzano jeszcze GitHuba."), style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 220)), "Status aktualizacji", "Status sprawdzania i pobierania aktualizacji z GitHuba.")
     updateInfoBox.Add(updateStatusCtrl, 1, wx.EXPAND | wx.ALL, 4)
     updateSizer.Add(updateInfoBox, 1, wx.EXPAND | wx.ALL, 6)
 
@@ -2785,7 +3039,10 @@ def run_tk_gui():
             widget.configure(state=configState)
         for widget in manualWidgets:
             widget.configure(state=manualState)
-        setStatus("Tryb: " + ("plik konfiguracyjny CSV" if configMode else "ręczny"))
+        if uiLanguage == "en":
+            setStatus("Mode: " + ("CSV configuration file" if configMode else "manual"))
+        else:
+            setStatus("Tryb: " + ("plik konfiguracyjny CSV" if configMode else "ręczny"))
 
     mainFrame = tk.Frame(root, padx=10, pady=8)
     mainFrame.pack(fill="both", expand=True)

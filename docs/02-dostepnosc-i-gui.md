@@ -53,6 +53,8 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 `Profil ustawien` to nazwa profilu JSON. `Zapisz profil` zapisuje aktualne ustawienia, `Wczytaj profil` przywraca zapisany profil, `Usun profil` kasuje wybrany profil, a `Folder profili` otwiera katalog profili w Eksploratorze.
 
+`Jezyk interfejsu` wybiera polski albo angielski interfejs programu. Po zmianie jezyka uruchom program ponownie, aby wszystkie zakladki, przyciski, opisy dostepnosciowe i komunikaty startowe zostaly zaladowane w wybranym jezyku. Ustawienie jest zapisywane w `%APPDATA%\OpenGD77PromptStudio\settings.json`.
+
 `Plik konfiguracyjny CSV` wskazuje plik z wieloma zadaniami. Uzywaj go tylko w trybie `Plik konfiguracyjny CSV`.
 
 `Wordlist CSV` wskazuje plik z tekstami promptow. To podstawowy plik wejsciowy w trybie recznym.

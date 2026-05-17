@@ -1,5 +1,11 @@
 ﻿# Changelog
 
+## 0.4.6 - 2026-05-18
+
+- Dodano wybor jezyka interfejsu w GUI: polski albo angielski.
+- Program zapisuje jezyk w `%APPDATA%\OpenGD77PromptStudio\settings.json`; pelne przeladowanie napisow nastepuje po ponownym uruchomieniu.
+- Przetlumaczono glowne zakladki, przyciski, pola, opisy dostepnosciowe i informacje o wariantach VPR na angielski.
+
 ## 0.4.5 - 2026-05-18
 
 - Dodano w GUI fokusowalne pole `Informacja o wariantach VPR`, ktore wyjasnia, do jakich rodzin radii pasuja `UV380-like` i `monochrome`.
