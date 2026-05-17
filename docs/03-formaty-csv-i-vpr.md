@@ -22,7 +22,7 @@ Przyklad jest w `examples/wordlist_sample.csv`.
 Kolumny trybu konfiguracyjnego:
 
 ```csv
-Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo,Nvda_addon_file,RHVoice_dll
+Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo,Nvda_addon_file,RHVoice_dll,RHVoice_pitch
 ```
 
 Wartosci `Download`, `Encode`, `Createpack` i `Remove_silence` przyjmuja `y` albo `n`.
@@ -30,6 +30,8 @@ Wartosci `Download`, `Encode`, `Createpack` i `Remove_silence` przyjmuja `y` alb
 `Nvda_addon_file` jest opcjonalne. Jezeli `Download` ma wartosc `y` i `Nvda_addon_file` jest wypelnione, program uzyje lokalnego RHVoice z dodatku NVDA zamiast TTSMP3.
 
 `RHVoice_dll` jest opcjonalne. Jezeli jest puste, program sprobuje wykryc DLL automatycznie.
+
+`RHVoice_pitch` jest opcjonalne. Wartosc `1.0` oznacza normalna wysokosc glosu; np. `0.94` delikatnie obniza glos RHVoice.
 
 ## Surowe probki przed AMBE
 

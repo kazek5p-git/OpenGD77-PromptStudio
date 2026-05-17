@@ -8,6 +8,7 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 
 - Pobiera mowe z TTSMP3 na podstawie pliku wordlist CSV.
 - Generuje mowe lokalnie z glosu RHVoice dostarczonego jako `.nvda-addon`.
+- Pozwala regulowac wysokosc glosu RHVoice przy lokalnej syntezie.
 - Konwertuje audio przez `ffmpeg` do surowego PCM 8 kHz, 16-bit, mono.
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.

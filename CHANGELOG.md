@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.4 - 2026-05-17
+
+- Dodano regulacje wysokosci glosu RHVoice przez pole `Wysokosc RHVoice` w GUI i parametr `-p`.
+- Tryb CSV obsluguje opcjonalna kolumne `RHVoice_pitch`; `1.0` oznacza normalna wysokosc, mniejsze wartosci obnizaja glos.
+
 ## 0.3.3 - 2026-05-17
 
 - Dodano dostępny dla NVDA pasek postępu oraz pole `Postęp pracy` ze skrótem Alt+P.

@@ -54,3 +54,7 @@ OpenGD77PromptStudio.exe -f wordlist_polish.csv -n Kazek -N Kazek.nvda-addon -L 
 ## Tryb config CSV
 
 Wypelnij kolumne `Nvda_addon_file`. Jezeli `Download` ma wartosc `y`, program uzyje lokalnej syntezy RHVoice.
+
+## Wysokosc glosu
+
+Parametr `-p` ustawia wzgledna wysokosc glosu RHVoice. `1.0` to wartosc normalna. Mniejsza wartosc, na przyklad `0.94`, delikatnie obniza glos.

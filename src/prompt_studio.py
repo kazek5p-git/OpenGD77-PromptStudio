@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.3.3"
+PROGRAM_VERSION = "0.3.4"
 
 
 def is_frozen_app():
@@ -49,6 +49,20 @@ atempoAlias = ""
 removeSilenceAtStart = False
 nvdaAddonPath = ""
 rhvoiceDllPath = ""
+rhvoiceRelativePitch = "1.0"
+
+
+def parseRhvoiceRelativePitch(value):
+    text = str(value).strip().replace(",", ".")
+    try:
+        pitch = float(text)
+    except ValueError:
+        raise ValueError("RHVoice pitch must be a number, for example 1.0 or 0.94.")
+    if pitch < 0.5 or pitch > 2.0:
+        raise ValueError("RHVoice pitch must be between 0.5 and 2.0.")
+    return pitch
+
+
 # PollyPro is not working
 forceTTSMP3Usage = True
 
@@ -600,7 +614,7 @@ class RHVoiceFileSynthesizer:
     def _done(self, userData):
         return None
 
-    def synthesizeToWav(self, text, wavPath, requestedProfile=""):
+    def synthesizeToWav(self, text, wavPath, requestedProfile="", relativePitch=1.0):
         profile = requestedProfile if requestedProfile in self.voiceProfiles else self.voiceProfiles[0]
         self.sampleRate = 0
         self.chunks = []
@@ -611,7 +625,7 @@ class RHVoiceFileSynthesizer:
             0,
             0,
             1,
-            1,
+            float(relativePitch),
             1,
             0,
             None,
@@ -658,6 +672,8 @@ def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
     configDir = os.path.join(os.getcwd(), ".prompt_studio_rhvoice_config")
     ensureVoiceFolders(voiceName)
     synth = RHVoiceFileSynthesizer(resourceDirs, configDir, dllPath)
+    pitch = parseRhvoiceRelativePitch(rhvoiceRelativePitch)
+    print("RHVoice relative pitch: " + str(pitch))
     try:
         requestedProfile = voiceName.strip()
         with open(filename, "r", encoding="utf-8") as csvfile:
@@ -673,8 +689,8 @@ def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
                         writeSilentPromptWav(wavFileName)
                         print("RHVoice: " + promptName + " -> " + wavFileName + " silence")
                     else:
-                        usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile)
-                        print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile)
+                        usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile, pitch)
+                        print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile + " pitch=" + str(pitch))
                 if (not os.path.exists(rawFileName)) or overwrite == True:
                     convertToRaw(wavFileName, rawFileName)
                     if os.path.exists(ambeFileName):
@@ -900,6 +916,7 @@ def usage(message=""):
     print("    -T                    : Download synthesised speech from ttsmp3.com")
     print("    -N=<nvda_addon>       : Synthesize speech from an RHVoice .nvda-addon")
     print("    -L=<RHVoice.dll>      : Optional path to RHVoice.dll")
+    print("    -p=pitch              : RHVoice relative pitch. 1.0 is normal; lower values lower the voice")
     print("    -e                    : Encode previous download synthesised speech files, using the GD-77")
     print("    -b                    : Build voice prompts data pack from Encoded spech files ")
     print("    -d=<device>           : Use the specified device as serial port,")
@@ -932,6 +949,7 @@ def main(argv=None):
     global atempoAlias
     global removeSilenceAtStart, forceTTSMP3Usage
     global nvdaAddonPath, rhvoiceDllPath
+    global rhvoiceRelativePitch
 
     if argv is None:
         argv = sys.argv[1:]
@@ -955,7 +973,7 @@ def main(argv=None):
     # Command line argument parsing
     try:
         ##opts, args = getopt.getopt(sys.argv[1:], "hof:n:seb:d:c:g:Tt:")
-        opts, args = getopt.getopt(argv, "hon:f:eb:d:c:g:Tt:A:rN:L:", ["help"])
+        opts, args = getopt.getopt(argv, "hon:f:eb:d:c:g:Tt:A:rp:N:L:", ["help"])
     except getopt.GetoptError as err:
         print(str(err))
         usage("")
@@ -989,6 +1007,8 @@ def main(argv=None):
             atempo = arg
         elif opt in ('-A'):
             atempoAlias = arg
+        elif opt in ('-p'):
+            rhvoiceRelativePitch = str(parseRhvoiceRelativePitch(arg))
 
     if (configName != "") and not os.path.exists(configName):
         usage("ERROR: Config file not found: " + configName)
@@ -1026,10 +1046,13 @@ def main(argv=None):
                 cfg_atempo = row['Audio_tempo'].strip()
                 cfg_nvda_addon = row.get('Nvda_addon_file', '').strip()
                 cfg_rhvoice_dll = row.get('RHVoice_dll', '').strip()
+                cfg_rhvoice_pitch = row.get('RHVoice_pitch', '').strip()
 
                 ## If Audio_tempo is not set, use the default value
                 if cfg_atempo != '':
                     atempo = cfg_atempo
+                if cfg_rhvoice_pitch != '':
+                    rhvoiceRelativePitch = str(parseRhvoiceRelativePitch(cfg_rhvoice_pitch))
 
                 ## Add audio tempo value to the filename
                 voicePackName = voicePackName.replace('.vpr', '-' + (atempoAlias if len(atempoAlias) > 0 else atempo) + '.vpr');
@@ -1499,6 +1522,8 @@ def run_wx_gui():
             args.extend(["-t", tempoCtrl.GetValue().strip()])
         if aliasCtrl.GetValue().strip():
             args.extend(["-A", aliasCtrl.GetValue().strip()])
+        if pitchCtrl.GetValue().strip():
+            args.extend(["-p", pitchCtrl.GetValue().strip()])
         return args
 
     def startRun(event=None):
@@ -1723,7 +1748,10 @@ def run_wx_gui():
     audioRow.Add(tempoCtrl, 0, wx.RIGHT, 20)
     audioRow.Add(wx.StaticText(panel, label="Alias tempa:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     aliasCtrl = named(wx.TextCtrl(panel, size=(120, -1)), "Alias tempa", "Opcjonalny alias tempa używany w nazwie pliku.")
-    audioRow.Add(aliasCtrl, 0)
+    audioRow.Add(aliasCtrl, 0, wx.RIGHT, 20)
+    audioRow.Add(wx.StaticText(panel, label="Wysokość RHVoice:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    pitchCtrl = named(wx.TextCtrl(panel, value=rhvoiceRelativePitch, size=(70, -1)), "Wysokość RHVoice", "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos.")
+    audioRow.Add(pitchCtrl, 0)
     optionsBox.Add(audioRow, 0, wx.ALL, 4)
 
     optionChecksRow = wx.BoxSizer(wx.HORIZONTAL)
@@ -1870,6 +1898,7 @@ def run_tk_gui():
     gainVar = tk.StringVar(value=gain)
     tempoVar = tk.StringVar(value=atempo)
     aliasVar = tk.StringVar()
+    pitchVar = tk.StringVar(value=rhvoiceRelativePitch)
     downloadVar = tk.BooleanVar(value=False)
     encodeVar = tk.BooleanVar(value=False)
     buildVar = tk.BooleanVar(value=True)
@@ -2050,6 +2079,8 @@ def run_tk_gui():
             args.extend(["-t", tempoVar.get().strip()])
         if aliasVar.get().strip():
             args.extend(["-A", aliasVar.get().strip()])
+        if pitchVar.get().strip():
+            args.extend(["-p", pitchVar.get().strip()])
         return args
 
     def startRun():
@@ -2268,6 +2299,9 @@ def run_tk_gui():
     tk.Label(optionsFrame, text="Alias tempa:").grid(row=2, column=1, sticky="w", padx=(235, 6), pady=4)
     aliasEntry = tk.Entry(optionsFrame, textvariable=aliasVar, width=14)
     aliasEntry.grid(row=2, column=1, sticky="w", padx=(320, 6), pady=4)
+    tk.Label(optionsFrame, text="Wysokość RHVoice:").grid(row=2, column=1, sticky="w", padx=(460, 6), pady=4)
+    pitchEntry = tk.Entry(optionsFrame, textvariable=pitchVar, width=8)
+    pitchEntry.grid(row=2, column=1, sticky="w", padx=(590, 6), pady=4)
 
     overwriteCheck = tk.Checkbutton(optionsFrame, text="Nadpisuj istniejące pliki", variable=overwriteVar)
     removeSilenceCheck = tk.Checkbutton(optionsFrame, text="Usuń ciszę z początku", variable=removeSilenceVar)
@@ -2321,6 +2355,7 @@ def run_tk_gui():
         (gainEntry, "Zmiana głośności w decybelach."),
         (tempoEntry, "Tempo audio od 0.5 do 2."),
         (aliasEntry, "Opcjonalny alias tempa używany w nazwie pliku."),
+        (pitchEntry, "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos."),
         (logText, "Log działania buildera.")
     ]:
         describe(widget, text)
