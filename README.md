@@ -18,6 +18,7 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 - Pokazuje postep pracy na dostepnym pasku postepu; fokus na postep ustawisz skrotem `Alt+P`.
 - Zapisuje i wczytuje profile ustawien z folderu `%APPDATA%\OpenGD77PromptStudio\profiles`.
 - Ma zakladke aktualizacji, ktora sprawdza i pobiera najnowszy release z GitHuba.
+- Wyjasnia w dokumentacji opcje `Alias tempa` oraz `Nadpisuj istniejace pliki`, zeby bylo jasne, kiedy uzywac ich przy tworzeniu promptow.
 
 ## Najszybsze uzycie
 

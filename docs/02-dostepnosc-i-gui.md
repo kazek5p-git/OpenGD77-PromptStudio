@@ -42,6 +42,10 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 Pole `Tempo` ustawia predkosc wszystkich promptow. Pole `Tempo liter/cyfr` jest opcjonalne i dotyczy tylko pojedynczych liter, cyfr, spacji i kropki. Puste pole oznacza, ze litery i cyfry uzyja zwyklego tempa.
 
+Pole `Alias tempa` nie zmienia dzwieku. To tylko krotka etykieta uzywana w nazwie wynikowego pliku VPR, na przyklad `normalny`, `szybki`, `wolny`, `kazek`, `zuza_wolna` albo `czytelny`. Jezeli alias jest pusty, program uzywa liczby tempa w nazwie pliku.
+
+Pole wyboru `Nadpisuj istniejace pliki` wymusza ponowne tworzenie plikow audio i plikow posrednich. Gdy jest nieoznaczone, program uzywa juz istniejacych plikow WAV, RAW albo AMBE, jezeli je znajdzie. Zaznacz je po zmianie glosu, tempa, glosnosci, tekstow promptow albo gdy poprzednie generowanie wyszlo zle.
+
 ## NVDA
 
 Program nie wymaga specjalnego dodatku NVDA. Najważniejsze komunikaty trafiają do tekstu statusu i logu.
