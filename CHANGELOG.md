@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## 0.4.7 - 2026-05-18
+
+- Po zmianie jezyka interfejsu program pyta, czy uruchomic sie ponownie od razu.
+- Wybor `Tak` startuje nowa instancje programu i zamyka aktualne okno, dzieki czemu wybrany jezyk laduje sie bez recznego zamykania.
+
 ## 0.4.6 - 2026-05-18
 
 - Dodano wybor jezyka interfejsu w GUI: polski albo angielski.

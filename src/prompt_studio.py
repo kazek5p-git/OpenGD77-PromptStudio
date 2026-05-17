@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.6"
+PROGRAM_VERSION = "0.4.7"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -230,6 +230,10 @@ UI_TRANSLATIONS_EN = {
     "Log wyczyszczony.": "Log cleared.",
     "Aktualizacja": "Update",
     "Odświeżono listę portów. Wpisz port ręcznie albo wybierz go z listy.": "Port list refreshed. Type the port manually or choose it from the list.",
+    "Uruchomić program ponownie teraz?": "Restart the program now?",
+    "Program uruchomi się ponownie, aby zastosować wybrany język.": "The program will restart to apply the selected language.",
+    "Nie udało się uruchomić programu ponownie: ": "Could not restart the program: ",
+    "Najpierw zatrzymaj aktualnie dzialajacy builder.": "Stop the currently running builder first.",
 }
 
 
@@ -2298,6 +2302,33 @@ def run_wx_gui():
                 pass
         frame.Destroy()
 
+    def restartProgram(selectedLanguage):
+        if currentProcess["proc"] is not None:
+            wx.MessageBox(
+                translateUiText("Najpierw zatrzymaj aktualnie dzialajacy builder.", selectedLanguage),
+                translateUiText("Język interfejsu", selectedLanguage),
+                wx.OK | wx.ICON_WARNING,
+                frame,
+            )
+            return
+        try:
+            if is_frozen_app():
+                args = [sys.executable]
+                cwd = application_base_dir()
+            else:
+                args = [sys.executable, scriptPath]
+                cwd = scriptDir
+            subprocess.Popen(args, cwd=cwd, close_fds=True)
+        except Exception as err:
+            wx.MessageBox(
+                translateUiText("Nie udało się uruchomić programu ponownie: ", selectedLanguage) + str(err),
+                translateUiText("Język interfejsu", selectedLanguage),
+                wx.OK | wx.ICON_ERROR,
+                frame,
+            )
+            return
+        frame.Close()
+
     frame.CreateStatusBar()
 
     tabTitles = [trText("Projekt"), trText("Mowa"), trText("Opcje"), trText("Praca"), trText("Aktualizacja i pomoc")]
@@ -2436,8 +2467,17 @@ def run_wx_gui():
         saveAppSettings(settings)
         message = translateUiText("Zapisano język interfejsu. Uruchom program ponownie, aby przeładować wszystkie napisy.", selectedLanguage)
         title = translateUiText("Język interfejsu", selectedLanguage)
+        question = translateUiText("Uruchomić program ponownie teraz?", selectedLanguage)
+        detail = translateUiText("Program uruchomi się ponownie, aby zastosować wybrany język.", selectedLanguage)
         setStatus(message)
-        wx.MessageBox(message, title, wx.OK | wx.ICON_INFORMATION, frame)
+        answer = wx.MessageBox(
+            message + "\n\n" + detail + "\n" + question,
+            title,
+            wx.YES_NO | wx.NO_DEFAULT | wx.ICON_QUESTION,
+            frame,
+        )
+        if answer == wx.YES:
+            restartProgram(selectedLanguage)
 
     languageChoice.Bind(wx.EVT_CHOICE, onLanguageChanged)
 
