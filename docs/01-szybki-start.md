@@ -31,6 +31,14 @@ Nie kazdy `.nvda-addon` jest glosem. Obslugiwane sa dodatki RHVoice z plikami `d
 
 `Zbuduj plik VPR` sklada pliki `.amb` do kontenera VPR. Program tworzy dwa pliki: `UV380-like` oraz `monochrome`.
 
+## Jaki wariant VPR wybrac
+
+`UV380-like` wybierz dla kolorowych i nowszych radii OpenGD77, m.in. TYT MD-UV380/MD-UV390, Retevis RT3S, TYT MD-9600/Retevis RT-90, TYT MD-2017/Retevis RT-82 oraz Baofeng DM-1701/Retevis RT-84.
+
+`monochrome` wybierz dla starszej rodziny z monochromatycznym ekranem, m.in. Radioddity GD-77/GD-77S, Baofeng DM-1801/DM-1801A oraz Baofeng RD-5R.
+
+Retevis RT3 bez S nie jest tym samym co RT3S. Jezeli radio to RT3S z GPS albo RT3S bez GPS, zostaje `UV380-like`.
+
 ## Tryb z plikiem konfiguracyjnym
 
 Tryb `Plik konfiguracyjny CSV` uruchamia wiele zestawow naraz. Przyklad jest w `examples/config_sample.csv`.

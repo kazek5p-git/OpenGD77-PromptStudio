@@ -74,3 +74,11 @@ Limity promptow:
 - `UV380-like`: 368 pozycji.
 
 Limit rozmiaru gotowego VPR w kodzie: `0x28C00` bajtow.
+
+### Zgodnosc wariantow z radiami
+
+`UV380-like` jest dla kolorowych i nowszych radii OpenGD77: TYT MD-UV380/MD-UV390, Retevis RT3S, TYT MD-9600/Retevis RT-90, TYT MD-2017/Retevis RT-82 oraz Baofeng DM-1701/Retevis RT-84.
+
+`monochrome` jest dla starszej rodziny z monochromatycznym ekranem: Radioddity GD-77/GD-77S, Baofeng DM-1801/DM-1801A oraz Baofeng RD-5R.
+
+Retevis RT3 bez S nie powinien byc traktowany jak RT3S. Wersja RT3S z GPS i bez GPS uzywa wariantu `UV380-like`.

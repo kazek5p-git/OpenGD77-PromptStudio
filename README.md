@@ -13,12 +13,21 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 - Pozwala ustawic osobne tempo dla pojedynczych liter, cyfr, spacji i kropki.
 - Gotowy release ma wbudowany `ffmpeg.exe`, wiec zwykly uzytkownik nie musi wpisywac sciezki.
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
-- Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.
+- Buduje pliki VPR w wariantach `UV380-like` i `monochrome` oraz opisuje, dla jakich rodzin radii wybrac kazdy wariant.
 - Ma natywny interfejs `wxPython` z dostepnym paskiem zakladek opartym o radiobuttony oraz normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, liste portow i log.
 - Pokazuje postep pracy na dostepnym pasku postepu; fokus na postep ustawisz skrotem `Alt+P`.
 - Zapisuje i wczytuje profile ustawien z folderu `%APPDATA%\OpenGD77PromptStudio\profiles`.
 - Ma zakladke aktualizacji, ktora sprawdza i pobiera najnowszy release z GitHuba.
 - Wyjasnia w dokumentacji opcje `Alias tempa` oraz `Nadpisuj istniejace pliki`, zeby bylo jasne, kiedy uzywac ich przy tworzeniu promptow.
+
+## Warianty VPR
+
+Program buduje dwa warianty pliku `.vpr`:
+
+- `UV380-like`: dla kolorowych i nowszych radii OpenGD77, m.in. TYT MD-UV380/MD-UV390, Retevis RT3S, TYT MD-9600/Retevis RT-90, TYT MD-2017/Retevis RT-82 oraz Baofeng DM-1701/Retevis RT-84.
+- `monochrome`: dla starszej rodziny z monochromatycznym ekranem, m.in. Radioddity GD-77/GD-77S, Baofeng DM-1801/DM-1801A oraz Baofeng RD-5R.
+
+Retevis RT3 bez S nie jest tym samym co RT3S. GPS albo brak GPS w RT3S nie zmienia wyboru promptu: uzyj `UV380-like`.
 
 ## Najszybsze uzycie
 

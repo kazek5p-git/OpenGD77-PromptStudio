@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.4"
+PROGRAM_VERSION = "0.4.5"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -60,6 +60,14 @@ def defaultOutputDir():
 def defaultOutputPath():
     return os.path.join(defaultOutputDir(), "voice_prompts.vpr")
 
+VOICE_PROMPT_VARIANT_HELP = (
+    "Program buduje dwa warianty VPR.\n"
+    "UV380-like: dla kolorowych i nowszych radii OpenGD77, m.in. TYT MD-UV380/MD-UV390, "
+    "Retevis RT3S, TYT MD-9600/Retevis RT-90, TYT MD-2017/Retevis RT-82 oraz Baofeng DM-1701/Retevis RT-84.\n"
+    "Monochrome: dla starszej rodziny z monochromatycznym ekranem, m.in. Radioddity GD-77/GD-77S, "
+    "Baofeng DM-1801/DM-1801A oraz Baofeng RD-5R.\n"
+    "Retevis RT3 bez S nie jest tym samym co RT3S. GPS albo brak GPS w RT3S nie zmienia wyboru: użyj UV380-like."
+)
 
 def profilesDir():
     return os.path.join(appUserDataDir(), "profiles")
@@ -1141,6 +1149,7 @@ def usage(message=""):
     print("    -p=pitch              : RHVoice relative pitch. 1.0 is normal; lower values lower the voice")
     print("    -e                    : Encode previous download synthesised speech files, using the GD-77")
     print("    -b                    : Build voice prompts data pack from Encoded spech files ")
+    print("                          Builds UV380-like for MD-UV380/RT3S family and monochrome for GD-77/DM-1801/RD-5R family.")
     print("    -d=<device>           : Use the specified device as serial port,")
     print("    -o                    : Overwrite existing files")
     print("    -g=gain               : Audio level gain adjust in db.  Default is 0, but can be negative or positive numbers")
@@ -2209,10 +2218,13 @@ def run_wx_gui():
     voiceCtrl = named(wx.TextCtrl(projectPage, value="Polish"), "Nazwa głosu", "Nazwa głosu i folderu na pliki audio.")
     addRow(manualBox, "Nazwa głosu:", voiceCtrl)
 
-    outputCtrl = named(wx.TextCtrl(projectPage, value=defaultOutputPath()), "Plik wynikowy VPR", "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome.")
+    outputCtrl = named(wx.TextCtrl(projectPage, value=defaultOutputPath()), "Plik wynikowy VPR", "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome. Poniżej jest opis, dla których rodzin radii używać danego wariantu.")
     outputBrowse = named(wx.Button(projectPage, label="Wybierz..."), "Wybierz plik wynikowy VPR")
     outputBrowse.Bind(wx.EVT_BUTTON, lambda event: browseOutput())
     addRow(manualBox, "Plik wynikowy VPR:", outputCtrl, outputBrowse)
+
+    variantInfoCtrl = named(wx.TextCtrl(projectPage, value=VOICE_PROMPT_VARIANT_HELP, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 110)), "Informacja o wariantach VPR", VOICE_PROMPT_VARIANT_HELP)
+    manualBox.Add(variantInfoCtrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
 
     serialRow = wx.BoxSizer(wx.HORIZONTAL)
     serialLabel = wx.StaticText(projectPage, label="Port COM radia:")
@@ -2912,7 +2924,7 @@ def run_tk_gui():
         (configEntry, "Plik konfiguracyjny CSV."),
         (wordlistEntry, "Plik CSV z kolumnami promptów."),
         (voiceEntry, "Nazwa głosu i folderu na pliki audio."),
-        (outputEntry, "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome."),
+        (outputEntry, "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome. Poniżej jest opis, dla których rodzin radii używać danego wariantu."),
         (serialEntry, "Port COM radia OpenGD77, na przykład COM5."),
         (portsList, "Lista wykrytych portów. Strzałkami wybierz port."),
         (workDirEntry, "Folder roboczy dla plików tymczasowych i ścieżek względnych."),

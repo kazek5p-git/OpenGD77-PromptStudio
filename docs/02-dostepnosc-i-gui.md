@@ -61,6 +61,8 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 `Plik wynikowy VPR` jest bazowa nazwa pliku wynikowego. Program dopisuje warianty i tempo do nazwy, na przyklad wariant `UV380-like` albo `monochrome`.
 
+`Informacja o wariantach VPR` jest polem tylko do odczytu. NVDA moze wejsc w nie Tabem i odczytac, ze `UV380-like` jest dla nowszych kolorowych modeli, takich jak MD-UV380/MD-UV390 i Retevis RT3S, a `monochrome` dla GD-77/GD-77S, DM-1801/DM-1801A i RD-5R.
+
 `Port COM radia` jest potrzebny przy kodowaniu AMBE przez radio. `Odswiez porty` ponownie wyszukuje porty, a `Lista wykrytych portow` pozwala wybrac port z listy.
 
 `Pobierz / syntezuj audio` tworzy pliki mowy ze zrodla wybranego na zakladce `Mowa`.

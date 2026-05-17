@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## 0.4.5 - 2026-05-18
+
+- Dodano w GUI fokusowalne pole `Informacja o wariantach VPR`, ktore wyjasnia, do jakich rodzin radii pasuja `UV380-like` i `monochrome`.
+- Uzupelniono dokumentacje o zgodnosc wariantow VPR z radiami, w tym Retevis RT3S oraz starsza rodzine GD-77/DM-1801/RD-5R.
+
 ## 0.4.4 - 2026-05-17
 
 - Zakladki maja teraz numeracje dla czytnikow ekranu, np. `Zakladka 1 z 5: Projekt`, zeby bylo jasne, na ktorej zakladce znajduje sie fokus.
