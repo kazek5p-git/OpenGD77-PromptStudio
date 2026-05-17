@@ -1,51 +1,82 @@
-﻿# Dostępność i GUI
+﻿# Dostepnosc i GUI
 
-Interfejs jest zrobiony w `wxPython`, czyli korzysta z natywnych kontrolek Windows widocznych dla czytników ekranu.
-
+Interfejs jest zrobiony w `wxPython`, czyli korzysta z natywnych kontrolek Windows widocznych dla czytnikow ekranu. Glowne kontrolki maja jawne nazwy, opisy i tekst statusu.
 
 ## Zakladki
 
-GUI wxPython jest podzielone na zakladki:
+GUI jest podzielone na piec zakladek:
 
-- `Projekt`: tryb pracy, profile ustawien, CSV, port COM i operacje.
-- `Mowa`: wybor zrodla mowy i dodatku NVDA/RHVoice. `RHVoice.dll` jest wykrywana automatycznie.
-- `Opcje`: folder roboczy, glosnosc, tempo, tempo liter/cyfr i wysokosc RHVoice.
+- `Projekt`: tryb pracy, jezyk interfejsu, profile ustawien, CSV, port COM i operacje.
+- `Mowa`: wybor zrodla mowy i dodatku NVDA/RHVoice.
+- `Opcje`: folder roboczy, glosnosc, tempo, tempo liter/cyfr, alias tempa, wysokosc RHVoice i opcje audio.
 - `Praca`: przyciski uruchamiania, pasek postepu i log.
-- `Aktualizacja i pomoc`: sprawdzanie GitHub Releases, pobieranie aktualizacji, pomoc i autor.
+- `Aktualizacja i pomoc`: sprawdzanie GitHub Releases, pobieranie aktualizacji, linki, pomoc i autor.
 
-Pasek zakladek jest zrobiony ze zwyklych radiobuttonow: `Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc`. Po uruchomieniu programu fokus trafia na `Projekt`. Czytnik ekranu dostaje tez pozycje zakladki, na przyklad `Zakladka 1 z 5: Projekt` albo `Zakladka 3 z 5: Opcje`. Strzalki, Tab oraz skroty `Ctrl+Tab`, `Ctrl+Shift+Tab`, `Ctrl+PageDown`, `Ctrl+PageUp` i `Alt+1` do `Alt+5` przelaczaja zakladki bez wchodzenia w problematyczny natywny pasek `wx.Notebook`.
+Pasek zakladek jest zrobiony ze zwyklych radiobuttonow: `Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc`. Po uruchomieniu programu fokus trafia na `Projekt`.
+
+Kazdy radiobutton ma jako nazwe sama nazwe zakladki. Numer pozycji jest podany jako opis dostepnosciowy. Dla NVDA oczekiwany uklad to na przyklad:
+
+```text
+Projekt  przycisk opcji  oznaczone  Zakladka 1 z 5
+```
+
+W jezyku angielskim analogicznie:
+
+```text
+Project  radio button  checked  Tab 1 of 5
+```
+
+Rzeczywista kolejnosc moze zalezec od ustawien gadatliwosci NVDA, ale program przekazuje nazwe jako `Projekt`, a opis jako `Zakladka 1 z 5`.
+
+## Nawigacja po zakladkach
+
+- `Strzalka w prawo` albo `Strzalka w dol`: nastepna zakladka, gdy fokus jest na pasku zakladek.
+- `Strzalka w lewo` albo `Strzalka w gore`: poprzednia zakladka, gdy fokus jest na pasku zakladek.
+- `Home`: pierwsza zakladka.
+- `End`: ostatnia zakladka.
+- `Ctrl+Tab` albo `Ctrl+PageDown`: nastepna zakladka.
+- `Ctrl+Shift+Tab` albo `Ctrl+PageUp`: poprzednia zakladka.
+- `Alt+1` do `Alt+5`: bezposredni wybor zakladki.
+- Przyciski `Poprzednia` i `Nastepna` pozwalaja przelaczac zakladki bez skrotow klawiaturowych.
+
+## Kontrolki
+
+Program uzywa zwyklych elementow Windows: pola edycji, przyciski, checkboxy, radiobuttony, listbox, pasek postepu i pole tekstowe logu.
+
+Po wejściu fokusem w wazne pole program aktualizuje tekst statusu. NVDA moze odczytac status opisujacy przeznaczenie kontrolki.
+
+## Jezyk interfejsu
+
+`Jezyk interfejsu` jest na zakladce `Projekt`. Dostepne wartosci:
+
+- `Polski`,
+- `English`.
+
+Po zmianie jezyka program zapisuje ustawienie do `%APPDATA%\OpenGD77PromptStudio\settings.json` i pyta, czy uruchomic sie ponownie.
+
+- `Tak`: program startuje nowa instancje i zamyka aktualne okno.
+- `Nie`: zmiana zostaje zapisana i zostanie zastosowana przy nastepnym uruchomieniu.
+
+Jezeli builder aktualnie pracuje, program nie restartuje sie od razu. Najpierw trzeba zatrzymac dzialajacy proces.
 
 ## Profile ustawien
 
 Profile sa zwyklymi plikami JSON w `%APPDATA%\OpenGD77PromptStudio\profiles`. Profil zapisuje aktualne wartosci pol GUI, lacznie ze sciezkami, operacjami, zrodlem mowy, tempem, portem COM i opcjami RHVoice.
 
-## Kontrolki
+Profil nie jest tym samym co globalne ustawienia programu. Jezyk interfejsu jest zapisywany osobno w `settings.json`.
 
-Program używa zwykłych elementów: pola edycji, przyciski, checkboxy, radiobuttony, listbox i pole tekstowe logu.
+## Kolejnosc pracy z klawiatury
 
-Pasek `Postęp pracy` jest natywnym paskiem postępu oraz polem tekstowym. Fokus na postęp ustawisz skrótem `Alt+P`.
+1. Po starcie fokus jest na `Projekt` w pasku zakladek.
+2. Tabulatorem przejdz do trybu pracy, jezyka, profili i pol trybu recznego.
+3. Wybierz plik CSV przyciskiem `Wybierz...` albo wpisz sciezke recznie.
+4. Ustaw checkboxy operacji spacja.
+5. Port COM mozesz odswiezyc `F5` i wybrac z listy.
+6. Uruchom `Alt+R`.
+7. Log ustawisz fokusem przez `Alt+L`.
+8. Postep pracy ustawisz fokusem przez `Alt+P`.
 
-Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczytuje jawne nazwy kontrolek oraz może odczytać status opisujący ich przeznaczenie.
-
-## Kolejność pracy z klawiatury
-
-1. Tabulatorem przejdź po polach trybu ręcznego.
-2. Wybierz plik CSV przyciskiem `Wybierz...` albo wpisz ścieżkę ręcznie.
-3. Ustaw checkboxy operacji spacją.
-4. Port COM możesz wybrać z listy portów po `F5`.
-5. Uruchom `Alt+R`.
-6. Log możesz szybko ustawić fokusem przez `Alt+L`.
-7. Postęp pracy możesz szybko ustawić fokusem przez `Alt+P`.
-
-
-
-## Opis elementow interfejsu
-
-### Pasek zakladek
-
-`Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc` sa radiobuttonami. Kazdy radiobutton ma jako nazwe sama nazwe zakladki, a numer pozycji jest podany jako opis, na przyklad `Projekt`, opis `Zakladka 1 z 5`. Oznaczony radiobutton pokazuje aktywna zakladke. `Poprzednia` i `Nastepna` przelaczaja zakladki bez uzywania skrotow klawiaturowych.
-
-### Zakladka Projekt
+## Zakladka Projekt
 
 `Tryb reczny` oznacza, ze ustawiasz wszystko w oknie programu: wordlist, glos, wynik, port i operacje.
 
@@ -53,13 +84,11 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 `Profil ustawien` to nazwa profilu JSON. `Zapisz profil` zapisuje aktualne ustawienia, `Wczytaj profil` przywraca zapisany profil, `Usun profil` kasuje wybrany profil, a `Folder profili` otwiera katalog profili w Eksploratorze.
 
-`Jezyk interfejsu` wybiera polski albo angielski interfejs programu. Po zmianie jezyka program pyta, czy uruchomic sie ponownie od razu. Wybor `Tak` startuje nowa instancje i zamyka aktualne okno, a wybor `Nie` zostawia zmiane zapisana do nastepnego uruchomienia. Ustawienie jest zapisywane w `%APPDATA%\OpenGD77PromptStudio\settings.json`.
-
 `Plik konfiguracyjny CSV` wskazuje plik z wieloma zadaniami. Uzywaj go tylko w trybie `Plik konfiguracyjny CSV`.
 
 `Wordlist CSV` wskazuje plik z tekstami promptow. To podstawowy plik wejsciowy w trybie recznym.
 
-`Nazwa glosu` jest nazwa profilu RHVoice albo nazwa folderu roboczego na pliki audio. Przyklad: `Kazek`, `Zuza`, `Polish`.
+`Nazwa glosu` jest nazwa profilu RHVoice albo nazwa folderu roboczego na pliki audio. Przyklad: `Kazek`, `Zuza`, `Natan`, `Polish`.
 
 `Plik wynikowy VPR` jest bazowa nazwa pliku wynikowego. Program dopisuje warianty i tempo do nazwy, na przyklad wariant `UV380-like` albo `monochrome`.
 
@@ -73,17 +102,17 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 `Zbuduj VPR` sklada gotowe pliki AMBE do pakietu VPR dla radia.
 
-### Zakladka Mowa
+## Zakladka Mowa
 
 `TTSMP3.com` wybiera internetowe zrodlo mowy. Program pobiera audio i konwertuje je lokalnie przez wbudowany ffmpeg.
 
-`RHVoice z dodatku NVDA` wybiera lokalny syntezator z pliku `.nvda-addon`. To jest zalecane, gdy chcesz uzyc glosow takich jak Kazek, Zuza albo inne glosy RHVoice.
+`RHVoice z dodatku NVDA` wybiera lokalny syntezator z pliku `.nvda-addon`. To jest zalecane, gdy chcesz uzyc glosow takich jak Kazek, Zuza, Natan albo inne glosy RHVoice.
 
 `Plik dodatku NVDA` wskazuje plik `.nvda-addon` z glosem RHVoice. Przycisk `Wybierz...` otwiera okno wyboru pliku. `RHVoice.dll` jest wykrywana automatycznie i nie ma osobnego pola w glownym GUI.
 
-### Zakladka Opcje
+## Zakladka Opcje
 
-`Folder roboczy` to miejsce na pliki tymczasowe i posrednie: WAV, RAW, AMBE oraz rozpakowane dodatki NVDA.
+`Folder roboczy` to miejsce na pliki tymczasowe i posrednie: WAV, MP3, RAW, AMBE oraz rozpakowane dodatki NVDA.
 
 `Glosnosc dB` zmienia poziom audio przed kodowaniem. Wartosci dodatnie podbijaja glosnosc, ujemne sciszaja.
 
@@ -99,30 +128,22 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 `Usun cisze z poczatku` usuwa poczatkowa cisze z probek audio tam, gdzie dany etap przetwarzania moze to zastosowac.
 
-### Zakladka Praca
+## Zakladka Praca
 
 `Uruchom Alt+R` startuje wybrane operacje. `Zatrzymaj Alt+S` zatrzymuje dzialajacy proces. `Test zaleznosci` sprawdza, czy program widzi potrzebne skladniki, porty i pliki. `Otworz folder` otwiera folder roboczy. `Wyczysc log` kasuje widoczny log. `Zamknij` zamyka program.
 
 `Status programu` podaje ostatni wazny komunikat. `Postep pracy` pokazuje procent i etap pracy. `Log dzialania buildera` zawiera szczegoly uruchomienia, komunikaty bledow i postep przetwarzania.
 
-### Zakladka Aktualizacja i pomoc
+Podczas pracy program aktualizuje pasek postepu i wysyla zdarzenia dostepnosciowe przy wiekszych zmianach procentu, dzieki czemu NVDA moze oglaszac postep bez czytania calego logu.
 
-`Sprawdz aktualizacje` pyta GitHub Releases o najnowsza wersje programu. `Pobierz i zainstaluj` pobiera nowszy EXE i w wersji uruchomionej jako EXE potrafi podmienic program po zamknieciu. `Releases` otwiera strone wydan. `GitHub` otwiera repozytorium. `Pomoc` otwiera dokumentacje. `O programie` pokazuje wersje, autora i link do repozytorium.
+## Zakladka Aktualizacja i pomoc
+
+`Sprawdz aktualizacje` pyta GitHub Releases o najnowsza wersje programu. `Pobierz i zainstaluj` pobiera nowszy EXE i w wersji uruchomionej jako EXE potrafi podmienic program po zamknieciu. `Releases` otwiera strone wydan. `GitHub` otwiera repozytorium. `Pomoc` otwiera dokumentacje albo repozytorium, jezeli dokumentacja nie jest obok EXE. `O programie` pokazuje wersje, autora i link do repozytorium.
 
 `Status aktualizacji` pokazuje wynik sprawdzania GitHuba, informacje o najnowszym release i ewentualne bledy pobierania.
 
-## Opcje tempa
-
-Pole `Tempo` ustawia predkosc wszystkich promptow. Pole `Tempo liter/cyfr` jest opcjonalne i dotyczy tylko pojedynczych liter, cyfr, spacji i kropki. Puste pole oznacza, ze litery i cyfry uzyja zwyklego tempa.
-
-Pole `Alias tempa` nie zmienia dzwieku. To tylko krotka etykieta uzywana w nazwie wynikowego pliku VPR, na przyklad `normalny`, `szybki`, `wolny`, `kazek`, `zuza_wolna` albo `czytelny`. Jezeli alias jest pusty, program uzywa liczby tempa w nazwie pliku.
-
-Pole wyboru `Nadpisuj istniejace pliki` wymusza ponowne tworzenie plikow audio i plikow posrednich. Gdy jest nieoznaczone, program uzywa juz istniejacych plikow WAV, RAW albo AMBE, jezeli je znajdzie. Zaznacz je po zmianie glosu, tempa, glosnosci, tekstow promptow albo gdy poprzednie generowanie wyszlo zle.
-
 ## NVDA
 
-Program nie wymaga specjalnego dodatku NVDA. Najważniejsze komunikaty trafiają do tekstu statusu i logu.
+Program nie wymaga specjalnego dodatku NVDA. Najwazniejsze komunikaty trafiaja do tekstu statusu i logu.
 
-Podczas pracy program aktualizuje pasek postępu i wysyła zdarzenia dostępnościowe przy większych zmianach procentu, dzięki czemu NVDA może ogłaszać postęp bez czytania całego logu.
-
-Jeżeli okno czytnika mowy nie odczytuje nowych linii logu automatycznie, przejdź do pola logu `Alt+L` i czytaj je standardowymi komendami pola edycji.
+Jezeli okno czytnika mowy nie odczytuje nowych linii logu automatycznie, przejdz do pola logu `Alt+L` i czytaj je standardowymi komendami pola edycji.

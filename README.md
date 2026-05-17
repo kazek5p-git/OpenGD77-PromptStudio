@@ -2,24 +2,45 @@
 
 OpenGD77 Prompt Studio to dostepne dla czytnikow ekranu narzedzie Windows do tworzenia pakietow komunikatow glosowych VPR dla OpenGD77.
 
-Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany jako osobny projekt z GUI, dokumentacja, przykladami i buildem do jednego pliku EXE.
+Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany jako osobny projekt z natywnym GUI Windows, dokumentacja, profilami ustawien, aktualizatorem i buildem do jednego pliku EXE.
+
+## Aktualny release
+
+Aktualna wersja projektu: `0.4.8`.
+
+- Release: https://github.com/kazek5p-git/OpenGD77-PromptStudio/releases/latest
+- Plik EXE w release: `OpenGD77PromptStudio.exe`
+- Lokalny wynik builda: `dist\OpenGD77PromptStudio.exe`
 
 ## Co robi program
 
 - Pobiera mowe z TTSMP3 na podstawie pliku wordlist CSV.
 - Generuje mowe lokalnie z glosu RHVoice dostarczonego jako `.nvda-addon`.
+- Pozwala wybrac profil glosu RHVoice, np. Kazek, Zuza, Natan, jezeli taki profil jest w dodatku.
 - Pozwala regulowac wysokosc glosu RHVoice przy lokalnej syntezie.
 - Konwertuje audio przez `ffmpeg` do surowego PCM 8 kHz, 16-bit, mono.
 - Pozwala ustawic osobne tempo dla pojedynczych liter, cyfr, spacji i kropki.
-- Gotowy release ma wbudowany `ffmpeg.exe`, wiec zwykly uzytkownik nie musi wpisywac sciezki.
+- Gotowy release ma wbudowany `ffmpeg.exe` oraz `RHVoice.dll`, wiec zwykly uzytkownik nie musi wpisywac sciezek do tych skladnikow.
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome` oraz opisuje, dla jakich rodzin radii wybrac kazdy wariant.
-- Ma natywny interfejs `wxPython` z dostepnym paskiem zakladek opartym o radiobuttony oraz normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, liste portow i log.
+- Ma natywny interfejs `wxPython` z dostepnym paskiem zakladek opartym o radiobuttony oraz normalnymi kontrolkami Windows.
 - Ma wybor jezyka interfejsu: polski albo angielski. Po zmianie jezyka program pyta o restart i moze uruchomic sie ponownie automatycznie.
 - Pokazuje postep pracy na dostepnym pasku postepu; fokus na postep ustawisz skrotem `Alt+P`.
 - Zapisuje i wczytuje profile ustawien z folderu `%APPDATA%\OpenGD77PromptStudio\profiles`.
 - Ma zakladke aktualizacji, ktora sprawdza i pobiera najnowszy release z GitHuba.
-- Wyjasnia w dokumentacji opcje `Alias tempa` oraz `Nadpisuj istniejace pliki`, zeby bylo jasne, kiedy uzywac ich przy tworzeniu promptow.
+
+## Najszybsze uzycie
+
+1. Pobierz `OpenGD77PromptStudio.exe` z najnowszego release GitHub.
+2. Uruchom EXE.
+3. Opcjonalnie ustaw `Jezyk interfejsu` na `Polski` albo `English`. Po zmianie program zapyta o restart.
+4. W trybie recznym wybierz `Wordlist CSV`.
+5. Wpisz nazwe glosu lub folderu, np. `Polish`, `Kazek`, `Zuza` albo `Natan`.
+6. Wybierz zrodlo mowy: `TTSMP3.com` albo `RHVoice z dodatku NVDA`.
+7. Przy zrodle RHVoice wskaz plik `.nvda-addon` z glosem.
+8. Wybierz operacje: `Pobierz / syntezuj audio`, `Koduj AMBE w radiu`, `Zbuduj VPR`.
+9. Wskaz port COM radia, jesli kodujesz AMBE.
+10. Nacisnij `Uruchom Alt+R`.
 
 ## Warianty VPR
 
@@ -30,42 +51,40 @@ Program buduje dwa warianty pliku `.vpr`:
 
 Retevis RT3 bez S nie jest tym samym co RT3S. GPS albo brak GPS w RT3S nie zmienia wyboru promptu: uzyj `UV380-like`.
 
-## Najszybsze uzycie
+## Foldery uzytkownika
 
-1. Pobierz `OpenGD77PromptStudio.exe` z najnowszego release GitHub.
-2. Uruchom EXE.
-3. Wybierz `Wordlist CSV`.
-4. Wpisz nazwe glosu lub folderu, np. `Polish`, `Kazek` albo `Zuza`.
-5. Wybierz zrodlo mowy: `TTSMP3` albo `Dodatek NVDA/RHVoice`.
-6. Przy zrodle NVDA/RHVoice wskaz plik `.nvda-addon` z glosem RHVoice.
-7. Wybierz operacje: tworzenie mowy, kodowanie AMBE, budowanie VPR.
-8. Wskaz port COM radia, jesli kodujesz AMBE.
-9. Nacisnij `Uruchom Alt+R`.
+Program nie powinien pokazywac sciezek z komputera osoby, ktora zbudowala EXE. Domyslne lokalizacje sa zalezne od aktualnego uzytkownika Windows:
 
-Szczegolowy opis jest w folderze `docs`.
-
-## Wazne o dodatkach NVDA
-
-Program obsluguje pliki `.nvda-addon`, ktore sa glosami RHVoice i zawieraja `data/voice.info`, `data/voice.params` oraz `langdata`.
-
-Nie kazdy dodatek NVDA jest syntezatorem albo glosem. Dodatki typu plugin, narzedzie globalne albo sterownik innego silnika zostana odrzucone z czytelnym komunikatem.
-
-Do syntezy RHVoice potrzebny jest `RHVoice.dll`. Gotowy EXE z release ma ten silnik wbudowany. Przy pracy ze zrodel albo w niestandardowym buildzie program moze tez wykryc DLL z zainstalowanego dodatku NVDA `RHVoice`, z pliku obok EXE albo ze zmiennej `RHVOICE_DLL`.
+- ustawienia programu: `%APPDATA%\OpenGD77PromptStudio\settings.json`,
+- profile ustawien: `%APPDATA%\OpenGD77PromptStudio\profiles`,
+- folder roboczy: `%APPDATA%\OpenGD77PromptStudio\work`,
+- pobrane aktualizacje: `%APPDATA%\OpenGD77PromptStudio\updates`,
+- domyslny wynik VPR: `Dokumenty\OpenGD77PromptStudio\voice_prompts.vpr`.
 
 ## Wymagania
 
 Dla gotowego EXE:
 
 - Windows 10 lub Windows 11.
-- `ffmpeg.exe` tylko przy buildach bez wbudowanego ffmpeg albo przy pracy ze zrodel. Standardowy release ma ffmpeg w EXE i GUI wykrywa go automatycznie.
-- `RHVoice.dll` tylko w trybie serwisowym przez zmienna `RHVOICE_DLL`, plik obok EXE albo parametr CLI `-L`. Gotowy release ma DLL w EXE i GUI wykrywa ja automatycznie.
 - Radio z OpenGD77 podlaczone jako port COM, jesli kodujesz AMBE.
+- `ffmpeg.exe` i `RHVoice.dll` nie sa potrzebne jako osobne pliki w standardowym release, bo sa wbudowane.
 
 Dla pracy ze zrodel:
 
 - Python 3.10 lub nowszy.
 - Pakiety z `requirements.txt`.
 - PyInstaller, jesli budujesz EXE.
+- Opcjonalnie `ffmpeg.exe` i `RHVoice.dll`, jezeli budujesz wariant bez wbudowanych skladnikow.
+
+## Dokumentacja
+
+- `docs/00-spis-tresci.md`: indeks dokumentacji i najwazniejsze sciezki.
+- `docs/01-szybki-start.md`: pierwszy przebieg i najwazniejsze opcje.
+- `docs/02-dostepnosc-i-gui.md`: opis GUI, NVDA, zakladek, jezyka, profili i skrotow.
+- `docs/03-formaty-csv-i-vpr.md`: format wordlist, config CSV, probek audio, AMBE i VPR.
+- `docs/04-budowanie-exe.md`: budowanie jednoplikowego EXE, bundlowanie ffmpeg/RHVoice i testy.
+- `docs/05-rozwiazywanie-problemow.md`: typowe awarie i sposoby naprawy.
+- `docs/06-dodatki-nvda-rhvoice.md`: obsluga glosow RHVoice z plikow `.nvda-addon`.
 
 ## Budowanie EXE
 
@@ -79,15 +98,8 @@ Wynik:
 dist\OpenGD77PromptStudio.exe
 ```
 
-## Dokumentacja
+Test podstawowy:
 
-- `docs/01-szybki-start.md`
-- `docs/02-dostepnosc-i-gui.md`
-- `docs/03-formaty-csv-i-vpr.md`
-- `docs/04-budowanie-exe.md`
-- `docs/05-rozwiazywanie-problemow.md`
-- `docs/06-dodatki-nvda-rhvoice.md`
-
-## Status
-
-Wersja projektu: `0.4.4`.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
+```

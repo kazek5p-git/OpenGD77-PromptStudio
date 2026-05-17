@@ -1,4 +1,4 @@
-# Formaty CSV, probek i VPR
+# Formaty CSV, probek, profili i VPR
 
 ## Wordlist CSV
 
@@ -15,9 +15,15 @@ Znaczenie:
 - `PromptText`: wlasciwy tekst wypowiadany przez synteze.
 - `PromptSpeechPostfix`: opcjonalny dopisek po tekscie.
 
+Wiersze zaczynajace sie od `#` sa traktowane jako komentarze i pomijane.
+
+Puste wpisy w wordliscie, na przyklad prompt spacji, sa obslugiwane jako krotka cisza zamiast bledu syntezy RHVoice.
+
 Przyklad jest w `examples/wordlist_sample.csv`.
 
 ## Config CSV
+
+Tryb `Plik konfiguracyjny CSV` sluzy do uruchamiania wielu zestawow naraz.
 
 Kolumny trybu konfiguracyjnego:
 
@@ -25,15 +31,61 @@ Kolumny trybu konfiguracyjnego:
 Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo,Compact_audio_tempo,Nvda_addon_file,RHVoice_dll,RHVoice_pitch
 ```
 
-Wartosci `Download`, `Encode`, `Createpack` i `Remove_silence` przyjmuja `y` albo `n`.
+Znaczenie najwazniejszych pol:
 
-`Nvda_addon_file` jest opcjonalne. Jezeli `Download` ma wartosc `y` i `Nvda_addon_file` jest wypelnione, program uzyje lokalnego RHVoice z dodatku NVDA zamiast TTSMP3.
+- `Wordlist_file`: sciezka do wordlist CSV.
+- `Voice_name`: nazwa glosu i folderu audio. Przy RHVoice moze byc tez nazwa profilu glosu.
+- `Voice_pack_name`: bazowa nazwa wynikowego pliku VPR.
+- `Download`: `y` albo `n`; tworzy audio przez TTSMP3 albo RHVoice.
+- `Encode`: `y` albo `n`; koduje RAW do AMBE przez radio.
+- `Createpack`: `y` albo `n`; buduje pliki VPR.
+- `Volume_change_db`: zmiana glosnosci w dB.
+- `Remove_silence`: `y` albo `n`; usuwa poczatkowa cisze, jezeli dany etap moze to zastosowac.
+- `Audio_tempo`: tempo audio od `0.5` do `2`.
+- `Compact_audio_tempo`: osobne tempo pojedynczych liter, cyfr, spacji i kropki.
+- `Nvda_addon_file`: opcjonalna sciezka do glosu RHVoice `.nvda-addon`.
+- `RHVoice_dll`: opcjonalna sciezka do `RHVoice.dll` w trybie serwisowym.
+- `RHVoice_pitch`: opcjonalna wysokosc RHVoice; `1.0` to normalna wysokosc.
 
-`RHVoice_dll` jest opcjonalne. Jezeli jest puste, program sprobuje wykryc DLL automatycznie.
+Dla zgodnosci akceptowana jest tez kolumna `Letter_audio_tempo`, jezeli nie ma `Compact_audio_tempo`.
 
-`Compact_audio_tempo` jest opcjonalne. Ustawia osobne tempo dla pojedynczych liter, cyfr, spacji i kropki. Jezeli jest puste, program uzywa wartosci `Audio_tempo`. Dla zgodnosci akceptowana jest tez kolumna `Letter_audio_tempo`.
+## Profile GUI JSON
 
-`RHVoice_pitch` jest opcjonalne. Wartosc `1.0` oznacza normalna wysokosc glosu; np. `0.94` delikatnie obniza glos RHVoice.
+Profile GUI sa w `%APPDATA%\OpenGD77PromptStudio\profiles` i maja rozszerzenie `.json`.
+
+Profil zapisuje m.in.:
+
+- tryb pracy,
+- sciezke config CSV,
+- wordlist CSV,
+- nazwe glosu,
+- wynikowy VPR,
+- port COM,
+- operacje: download, encode, build,
+- zrodlo mowy: TTSMP3 albo NVDA/RHVoice,
+- sciezke `.nvda-addon`,
+- folder roboczy,
+- glosnosc, tempo, tempo liter/cyfr, alias tempa,
+- wysokosc RHVoice,
+- `Nadpisuj istniejace pliki`,
+- `Usun cisze z poczatku`.
+
+Jezyk interfejsu nie jest czescia profilu. Jest globalnym ustawieniem w `%APPDATA%\OpenGD77PromptStudio\settings.json`.
+
+## Settings JSON
+
+Plik `%APPDATA%\OpenGD77PromptStudio\settings.json` przechowuje ustawienia programu niezalezne od profili. Aktualnie najwazniejsze pole to:
+
+```json
+{
+  "ui_language": "pl"
+}
+```
+
+Dozwolone wartosci:
+
+- `pl`: polski interfejs,
+- `en`: angielski interfejs.
 
 ## Surowe probki przed AMBE
 
@@ -49,13 +101,29 @@ To jest strumien probek wysylany do radia do kompresji AMBE.
 
 Jezeli tempo liter/cyfr rozni sie od zwyklego tempa, folder RAW/AMBE dostaje nazwe w stylu `tempo_1.5_letters_1.2`, zeby nie pomieszac probek ze starszymi ustawieniami.
 
-## Pliki WAV z RHVoice
+## Pliki WAV i MP3
 
-Przy zrodle `Dodatek NVDA/RHVoice` program zapisuje tymczasowe pliki `.wav` w folderze glosu. Ich probkowanie zalezy od modelu RHVoice, zwykle 16000 Hz albo 24000 Hz. Dopiero ffmpeg przeksztalca je do 8000 Hz RAW.
+Przy zrodle `TTSMP3.com` program zapisuje pliki `.mp3`, a potem konwertuje je do RAW.
+
+Przy zrodle `RHVoice z dodatku NVDA` program zapisuje tymczasowe pliki `.wav` w folderze glosu. Ich probkowanie zalezy od modelu RHVoice, zwykle 16000 Hz albo 24000 Hz. Dopiero ffmpeg przeksztalca je do 8000 Hz RAW.
 
 ## Pliki AMBE
 
 Pliki `.amb` zawieraja ramki AMBE odebrane z radia. Program nie koduje AMBE programowo, tylko uzywa radia jako sprzetowego kodera.
+
+## Nazwy wynikowych plikow
+
+`Plik wynikowy VPR` jest bazowa nazwa. Program dopisuje wariant radia i tempo, zeby rozroznic wyniki.
+
+Przyklady nazw:
+
+```text
+voice_prompts-UV380-like-tempo_1.5.vpr
+voice_prompts-monochrome-tempo_1.5.vpr
+voice_prompts-UV380-like-czytelny.vpr
+```
+
+`Alias tempa` zastapi liczbe tempa w nazwie wyniku. Nie zmienia dzwieku.
 
 ## Kontener VPR
 
@@ -75,7 +143,7 @@ Limity promptow:
 
 Limit rozmiaru gotowego VPR w kodzie: `0x28C00` bajtow.
 
-### Zgodnosc wariantow z radiami
+## Zgodnosc wariantow z radiami
 
 `UV380-like` jest dla kolorowych i nowszych radii OpenGD77: TYT MD-UV380/MD-UV390, Retevis RT3S, TYT MD-9600/Retevis RT-90, TYT MD-2017/Retevis RT-82 oraz Baofeng DM-1701/Retevis RT-84.
 
