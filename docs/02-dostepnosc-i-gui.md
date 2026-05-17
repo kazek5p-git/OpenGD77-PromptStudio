@@ -1,12 +1,12 @@
 # Dostępność i GUI
 
-Interfejs jest zrobiony w `tkinter`, czyli korzysta ze standardowych kontrolek Windows widocznych dla czytników ekranu.
+Interfejs jest zrobiony w `wxPython`, czyli korzysta z natywnych kontrolek Windows widocznych dla czytników ekranu.
 
 ## Kontrolki
 
 Program używa zwykłych elementów: pola edycji, przyciski, checkboxy, radiobuttony, listbox i pole tekstowe logu.
 
-Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA może odczytać, do czego służy dana kontrolka.
+Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczytuje jawne nazwy kontrolek oraz może odczytać status opisujący ich przeznaczenie.
 
 ## Kolejność pracy z klawiatury
 
