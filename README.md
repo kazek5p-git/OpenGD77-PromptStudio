@@ -80,4 +80,4 @@ dist\OpenGD77PromptStudio.exe
 
 ## Status
 
-Wersja projektu: `0.4.3`.
+Wersja projektu: `0.4.4`.

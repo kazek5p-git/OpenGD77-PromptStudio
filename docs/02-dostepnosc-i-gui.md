@@ -13,7 +13,7 @@ GUI wxPython jest podzielone na zakladki:
 - `Praca`: przyciski uruchamiania, pasek postepu i log.
 - `Aktualizacja i pomoc`: sprawdzanie GitHub Releases, pobieranie aktualizacji, pomoc i autor.
 
-Pasek zakladek jest zrobiony ze zwyklych radiobuttonow: `Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc`. Po uruchomieniu programu fokus trafia na `Projekt`. Strzalki, Tab oraz skroty `Ctrl+Tab`, `Ctrl+Shift+Tab`, `Ctrl+PageDown`, `Ctrl+PageUp` i `Alt+1` do `Alt+5` przelaczaja zakladki bez wchodzenia w problematyczny natywny pasek `wx.Notebook`.
+Pasek zakladek jest zrobiony ze zwyklych radiobuttonow: `Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc`. Po uruchomieniu programu fokus trafia na `Projekt`. Czytnik ekranu dostaje tez pozycje zakladki, na przyklad `Zakladka 1 z 5: Projekt` albo `Zakladka 3 z 5: Opcje`. Strzalki, Tab oraz skroty `Ctrl+Tab`, `Ctrl+Shift+Tab`, `Ctrl+PageDown`, `Ctrl+PageUp` i `Alt+1` do `Alt+5` przelaczaja zakladki bez wchodzenia w problematyczny natywny pasek `wx.Notebook`.
 
 ## Profile ustawien
 
@@ -43,7 +43,7 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 ### Pasek zakladek
 
-`Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc` sa radiobuttonami. Oznaczony radiobutton pokazuje aktywna zakladke. `Poprzednia` i `Nastepna` przelaczaja zakladki bez uzywania skrotow klawiaturowych.
+`Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc` sa radiobuttonami. Kazdy radiobutton ma w nazwie numer pozycji, na przyklad `Zakladka 1 z 5: Projekt`. Oznaczony radiobutton pokazuje aktywna zakladke. `Poprzednia` i `Nastepna` przelaczaja zakladki bez uzywania skrotow klawiaturowych.
 
 ### Zakladka Projekt
 

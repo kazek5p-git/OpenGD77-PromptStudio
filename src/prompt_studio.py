@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.3"
+PROGRAM_VERSION = "0.4.4"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -2069,10 +2069,18 @@ def run_wx_gui():
     tabNavLabel = wx.StaticText(panel, label="Zakladki:")
     tabNavLabel.SetMinSize((90, -1))
     tabNavBox.Add(tabNavLabel, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    def tabPositionText(index):
+        return str(index + 1) + " z " + str(len(tabTitles))
+
+    def tabAccessibleName(index):
+        return "Zakladka " + tabPositionText(index) + ": " + tabTitles[index]
+
     tabButtons = []
     for pos, title in enumerate(tabTitles):
         style = wx.RB_GROUP if pos == 0 else 0
-        tabButton = named(wx.RadioButton(panel, label=title, style=style), "Zakladka " + title, "Zakladka " + title + ".")
+        label = title + " (" + tabPositionText(pos) + ")"
+        name = tabAccessibleName(pos)
+        tabButton = named(wx.RadioButton(panel, label=label, style=style), name, name + ".")
         tabButton.SetValue(pos == 0)
         tabButtons.append(tabButton)
         tabNavBox.Add(tabButton, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
@@ -2129,7 +2137,7 @@ def run_wx_gui():
         notebook.SetSelection(index)
         for pos, tabButton in enumerate(tabButtons):
             tabButton.SetValue(pos == index)
-        setStatus("Zakladka: " + tabTitles[index])
+        setStatus(tabAccessibleName(index))
         if focusTab:
             wx.CallAfter(focusTabButton, index)
 

@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 0.4.4 - 2026-05-17
+
+- Zakladki maja teraz numeracje dla czytnikow ekranu, np. `Zakladka 1 z 5: Projekt`, zeby bylo jasne, na ktorej zakladce znajduje sie fokus.
+
 ## 0.4.3 - 2026-05-17
 
 - Zastapiono natywny pasek `wx.Notebook` dostepnym paskiem zakladek z radiobuttonow. NVDA widzi teraz kazda zakladke jako zwykla kontrolke z nazwa.
