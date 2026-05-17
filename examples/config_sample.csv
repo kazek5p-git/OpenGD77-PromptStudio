@@ -1,0 +1,2 @@
+Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo
+examples/wordlist_sample.csv,Polish,voice_prompts.vpr,n,n,y,0,n,1.5

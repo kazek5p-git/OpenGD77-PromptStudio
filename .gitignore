@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.spec
+build/
+dist/
+*.log
+*.tmp
+*.mp3
+*.wav
+*.raw
+*.amb
+*.vpr
+*.nvda-addon
+.env
+.venv/
+venv/
