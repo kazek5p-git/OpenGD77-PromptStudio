@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.3.4"
+PROGRAM_VERSION = "0.3.5"
 
 
 def is_frozen_app():
@@ -35,6 +35,10 @@ def application_base_dir():
     if is_frozen_app():
         return os.path.dirname(os.path.abspath(sys.executable))
     return os.path.dirname(os.path.abspath(__file__))
+
+
+def bundled_resource_dir():
+    return getattr(sys, "_MEIPASS", application_base_dir())
 
 FLASH_SEND_SIZE = 8
 MAX_USB_TRANSFERT_SIZE = 1024
@@ -366,9 +370,35 @@ def convert2AMBE(ser,infile,outfile):
         #print("")#newline
 
 
+def findFfmpegExecutable(explicitPath=""):
+    exeName = "ffmpeg.exe" if os.name == "nt" else "ffmpeg"
+    candidates = []
+    if explicitPath:
+        candidates.append(explicitPath)
+    envPath = os.environ.get("FFMPEG_EXE", "").strip()
+    if envPath:
+        candidates.append(envPath)
+    candidates.extend([
+        os.path.join(bundled_resource_dir(), exeName),
+        os.path.join(application_base_dir(), exeName),
+        os.path.join(os.path.expanduser("~"), "Documents", "fmdx-webserver-src", "node_modules", "ffmpeg-static", "ffmpeg.exe"),
+    ])
+    found = shutil.which(exeName)
+    if found:
+        candidates.append(found)
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return os.path.abspath(candidate)
+    return ""
+
+
+def ffmpeg_path_for_subprocess():
+    return findFfmpegExecutable() or ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
+
+
 def convertToRaw(inFile,outFile):
     print("ConvertToRaw "+ inFile + " -> " + outFile + " gain="+gain + " tempo="+atempo)
-    callArgs = ['ffmpeg','-y','-i', inFile,'-filter:a','atempo=+'+atempo+',volume='+gain+'dB','-ar','8000','-f','s16le',outFile]
+    callArgs = [ffmpeg_path_for_subprocess(),'-y','-i', inFile,'-filter:a','atempo=+'+atempo+',volume='+gain+'dB','-ar','8000','-f','s16le',outFile]
     if os.name == 'nt':
         subprocess.call(callArgs, creationflags=CREATE_NO_WINDOW)#'-af','silenceremove=1:0:-50dB'
     elif os.name == 'posix':
@@ -928,9 +958,7 @@ def usage(message=""):
     print("")
 
 def ffmpegAvailable():
-    if os.name == 'nt':
-        return str(shutil.which("ffmpeg.exe")).find("ffmpeg") != -1
-    return str(shutil.which("ffmpeg")).find("ffmpeg") != -1
+    return bool(findFfmpegExecutable())
 
 def ensureVoiceFolders(voiceName):
     if not os.path.exists(voiceName):
@@ -1171,17 +1199,8 @@ def run_wx_gui():
         return exe
 
     def findFfmpegHint():
-        found = shutil.which("ffmpeg.exe") if os.name == "nt" else shutil.which("ffmpeg")
-        if found:
-            return found
-        candidates = [
-            os.path.join(os.path.expanduser("~"), "Documents", "fmdx-webserver-src", "node_modules", "ffmpeg-static", "ffmpeg.exe"),
-            os.path.join(scriptDir, "ffmpeg.exe")
-        ]
-        for candidate in candidates:
-            if os.path.exists(candidate):
-                return candidate
-        return ""
+        return findFfmpegExecutable()
+
 
     def findRhvoiceDllHint():
         try:
@@ -1447,7 +1466,7 @@ def run_wx_gui():
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             messages.append("ffmpeg: OK (" + ffmpegCandidate + ")")
         elif ffmpegAvailable():
-            messages.append("ffmpeg: OK w PATH")
+            messages.append("ffmpeg: OK (" + findFfmpegExecutable() + ")")
         else:
             messages.append("ffmpeg: BRAK. Wybierz ffmpeg.exe albo dodaj ffmpeg do PATH.")
 
@@ -1543,9 +1562,10 @@ def run_wx_gui():
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
-        ffmpegCandidate = ffmpegCtrl.GetValue().strip()
+        ffmpegCandidate = ffmpegCtrl.GetValue().strip() or findFfmpegExecutable()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             env["PATH"] = os.path.dirname(ffmpegCandidate) + os.pathsep + env.get("PATH", "")
+            env["FFMPEG_EXE"] = ffmpegCandidate
         if rhvoiceDllCtrl.GetValue().strip():
             env["RHVOICE_DLL"] = rhvoiceDllCtrl.GetValue().strip()
 
@@ -1861,17 +1881,8 @@ def run_tk_gui():
         return exe
 
     def findFfmpegHint():
-        found = shutil.which("ffmpeg.exe") if os.name == "nt" else shutil.which("ffmpeg")
-        if found:
-            return found
-        candidates = [
-            os.path.join(os.path.expanduser("~"), "Documents", "fmdx-webserver-src", "node_modules", "ffmpeg-static", "ffmpeg.exe"),
-            os.path.join(scriptDir, "ffmpeg.exe")
-        ]
-        for candidate in candidates:
-            if os.path.exists(candidate):
-                return candidate
-        return ""
+        return findFfmpegExecutable()
+
 
     def findRhvoiceDllHint():
         try:
@@ -2004,7 +2015,7 @@ def run_tk_gui():
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             messages.append("ffmpeg: OK (" + ffmpegCandidate + ")")
         elif ffmpegAvailable():
-            messages.append("ffmpeg: OK w PATH")
+            messages.append("ffmpeg: OK (" + findFfmpegExecutable() + ")")
         else:
             messages.append("ffmpeg: BRAK. Wybierz ffmpeg.exe albo dodaj ffmpeg do PATH.")
 
@@ -2100,9 +2111,10 @@ def run_tk_gui():
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
-        ffmpegCandidate = ffmpegPathVar.get().strip()
+        ffmpegCandidate = ffmpegPathVar.get().strip() or findFfmpegExecutable()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             env["PATH"] = os.path.dirname(ffmpegCandidate) + os.pathsep + env.get("PATH", "")
+            env["FFMPEG_EXE"] = ffmpegCandidate
         if rhvoiceDllPathVar.get().strip():
             env["RHVOICE_DLL"] = rhvoiceDllPathVar.get().strip()
 

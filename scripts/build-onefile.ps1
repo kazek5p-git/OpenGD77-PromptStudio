@@ -2,7 +2,9 @@
     [string]$Python = "python",
     [switch]$Console,
     [string]$RhVoiceDll = "",
-    [switch]$NoBundledRhVoice
+    [switch]$NoBundledRhVoice,
+    [string]$FfmpegExe = "",
+    [switch]$NoBundledFfmpeg
 )
 
 $ErrorActionPreference = "Stop"
@@ -15,6 +17,34 @@ $Name = "OpenGD77PromptStudio"
 
 if (!(Test-Path $Source)) {
     throw "Nie znaleziono pliku ?r?d?owego: $Source"
+}
+
+
+function Find-FfmpegExe {
+    param([string]$ExplicitPath)
+
+    $candidates = @()
+    if (![string]::IsNullOrWhiteSpace($ExplicitPath)) {
+        $candidates += $ExplicitPath
+    }
+    if (![string]::IsNullOrWhiteSpace($env:FFMPEG_EXE)) {
+        $candidates += $env:FFMPEG_EXE
+    }
+    if (![string]::IsNullOrWhiteSpace($env:USERPROFILE)) {
+        $candidates += (Join-Path $env:USERPROFILE "Documents\fmdx-webserver-src\node_modules\ffmpeg-static\ffmpeg.exe")
+    }
+    $candidates += (Join-Path $Root "ffmpeg.exe")
+    $cmd = Get-Command ffmpeg.exe -ErrorAction SilentlyContinue
+    if ($cmd) {
+        $candidates += $cmd.Source
+    }
+
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path -LiteralPath $candidate)) {
+            return (Resolve-Path -LiteralPath $candidate).Path
+        }
+    }
+    return ""
 }
 
 function Find-RhVoiceDll {
@@ -62,6 +92,19 @@ $args = @(
 )
 
 $bundledRhVoice = ""
+$bundledFfmpeg = ""
+if (!$NoBundledFfmpeg) {
+    $bundledFfmpeg = Find-FfmpegExe -ExplicitPath $FfmpegExe
+    if ($bundledFfmpeg) {
+        Write-Host "Bundled ffmpeg.exe: $bundledFfmpeg"
+        $args += @("--add-binary", ($bundledFfmpeg + ";."))
+    } else {
+        Write-Host "ffmpeg.exe nie znaleziony. EXE zostanie zbudowany bez wbudowanego ffmpeg."
+    }
+} else {
+    Write-Host "Pomijam bundlowanie ffmpeg.exe na zadanie parametru -NoBundledFfmpeg."
+}
+
 if (!$NoBundledRhVoice) {
     $bundledRhVoice = Find-RhVoiceDll -ExplicitPath $RhVoiceDll
     if ($bundledRhVoice) {
@@ -92,4 +135,7 @@ Write-Host "Gotowe: $Exe"
 Write-Host "SHA256: $($hash.Hash)"
 if ($bundledRhVoice) {
     Write-Host "Wbudowano RHVoice.dll: $bundledRhVoice"
+}
+if ($bundledFfmpeg) {
+    Write-Host "Wbudowano ffmpeg.exe: $bundledFfmpeg"
 }

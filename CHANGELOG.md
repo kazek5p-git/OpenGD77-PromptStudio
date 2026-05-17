@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.5 - 2026-05-17
+
+- Build jednoplikowego EXE bundluje teraz `ffmpeg.exe`, jezeli jest dostepny lokalnie podczas budowania.
+- Program wykrywa `ffmpeg.exe` wbudowany przez PyInstaller i uzywa go bez wpisywania sciezki.
+
 ## 0.3.4 - 2026-05-17
 
 - Dodano regulacje wysokosci glosu RHVoice przez pole `Wysokosc RHVoice` w GUI i parametr `-p`.

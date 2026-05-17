@@ -12,3 +12,16 @@ Project/source information:
 - https://rhvoice.org/
 
 If you build your own EXE, `scripts/build-onefile.ps1` can include a locally installed `RHVoice.dll` by default, or skip it with `-NoBundledRhVoice`.
+
+## FFmpeg
+
+The Windows onefile release can bundle `ffmpeg.exe` so audio conversion works without asking users for a separate path.
+
+The bundled binary used on this machine reports: `ffmpeg version 6.0-essentials_build-www.gyan.dev` and is configured with GPL options.
+
+Project/source information:
+
+- https://ffmpeg.org/
+- https://www.gyan.dev/ffmpeg/builds/
+
+If you build your own EXE, `scripts/build-onefile.ps1` includes a locally available `ffmpeg.exe` by default, or skips it with `-NoBundledFfmpeg`.

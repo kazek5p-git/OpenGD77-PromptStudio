@@ -10,6 +10,7 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 - Generuje mowe lokalnie z glosu RHVoice dostarczonego jako `.nvda-addon`.
 - Pozwala regulowac wysokosc glosu RHVoice przy lokalnej syntezie.
 - Konwertuje audio przez `ffmpeg` do surowego PCM 8 kHz, 16-bit, mono.
+- Gotowy release ma wbudowany `ffmpeg.exe`, wiec zwykly uzytkownik nie musi wpisywac sciezki.
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.
 - Ma natywny interfejs `wxPython` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, liste portow i log.
@@ -42,7 +43,7 @@ Do syntezy RHVoice potrzebny jest `RHVoice.dll`. Gotowy EXE z release ma ten sil
 Dla gotowego EXE:
 
 - Windows 10 lub Windows 11.
-- `ffmpeg.exe`, jesli tworzysz mowe z TTSMP3 albo RHVoice.
+- `ffmpeg.exe` tylko przy buildach bez wbudowanego ffmpeg albo przy pracy ze zrodel. Standardowy release ma ffmpeg w EXE.
 - `RHVoice.dll`, jesli uzywasz glosu `.nvda-addon` RHVoice i korzystasz z builda bez wbudowanego silnika. Gotowy release ma DLL w EXE.
 - Radio z OpenGD77 podlaczone jako port COM, jesli kodujesz AMBE.
 
