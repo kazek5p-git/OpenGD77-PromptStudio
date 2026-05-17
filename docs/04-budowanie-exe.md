@@ -37,3 +37,17 @@ powershell -ExecutionPolicy Bypass -File .\scripts\smoke-test.ps1
 ```
 
 Test sprawdza kompilację Pythona, pomoc CLI i obecność artefaktu EXE, jeśli został zbudowany.
+
+## Build bez wbudowanego RHVoice
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-onefile.ps1 -NoBundledRhVoice
+```
+
+Ten wariant wymaga pozniej zainstalowanego dodatku NVDA `RHVoice`, pliku `RHVoice.dll` obok EXE albo zmiennej `RHVOICE_DLL`.
+
+## Wskazanie konkretnego RHVoice.dll
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\build-onefile.ps1 -RhVoiceDll C:\RHVoice\RHVoice.dll
+```

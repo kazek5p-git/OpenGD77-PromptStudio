@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- Domyslny build EXE bundluje `RHVoice.dll`, jezeli jest dostepny lokalnie.
+- Gotowy release pozwala uzyc glosu RHVoice `.nvda-addon` bez instalowania dodatku NVDA `RHVoice` i bez recznego wskazywania DLL.
+- Dodano parametr builda `-NoBundledRhVoice` do tworzenia wariantu bez wbudowanego silnika.
+- Dodano `licenses/RHVoice-GPL-3.0.txt` i `THIRD_PARTY_NOTICES.md`.
+
 ## 0.2.0
 
 - Dodano zrodlo mowy `Dodatek NVDA/RHVoice`.

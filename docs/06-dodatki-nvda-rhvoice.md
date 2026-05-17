@@ -23,8 +23,9 @@ Glos RHVoice i silnik RHVoice to dwie rozne rzeczy.
 
 Plik glosu `.nvda-addon` zawiera dane glosu i jezyka. Do syntezy potrzebny jest jeszcze `RHVoice.dll`.
 
-Program szuka `RHVoice.dll` automatycznie. Najprostsze warianty:
+Gotowy EXE z release ma `RHVoice.dll` wbudowany. Jezeli uzywasz wersji zrodlowej albo builda bez wbudowanego silnika, program szuka `RHVoice.dll` automatycznie. Najprostsze warianty:
 
+- uzyj gotowego EXE z release,
 - zainstaluj dodatek NVDA `RHVoice`,
 - albo wpisz pelna sciezke do `RHVoice.dll`,
 - albo skopiuj `RHVoice.dll` obok `OpenGD77PromptStudio.exe`,

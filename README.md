@@ -33,7 +33,7 @@ Program obsluguje pliki `.nvda-addon`, ktore sa glosami RHVoice i zawieraja `dat
 
 Nie kazdy dodatek NVDA jest syntezatorem albo glosem. Dodatki typu plugin, narzedzie globalne albo sterownik innego silnika zostana odrzucone z czytelnym komunikatem.
 
-Do syntezy RHVoice potrzebny jest `RHVoice.dll`. Program wykrywa go automatycznie z zainstalowanego dodatku NVDA `RHVoice`, z pliku obok EXE albo ze zmiennej `RHVOICE_DLL`.
+Do syntezy RHVoice potrzebny jest `RHVoice.dll`. Gotowy EXE z release ma ten silnik wbudowany. Przy pracy ze zrodel albo w niestandardowym buildzie program moze tez wykryc DLL z zainstalowanego dodatku NVDA `RHVoice`, z pliku obok EXE albo ze zmiennej `RHVOICE_DLL`.
 
 ## Wymagania
 
@@ -41,7 +41,7 @@ Dla gotowego EXE:
 
 - Windows 10 lub Windows 11.
 - `ffmpeg.exe`, jesli tworzysz mowe z TTSMP3 albo RHVoice.
-- `RHVoice.dll`, jesli uzywasz glosu `.nvda-addon` RHVoice.
+- `RHVoice.dll`, jesli uzywasz glosu `.nvda-addon` RHVoice i korzystasz z builda bez wbudowanego silnika. Gotowy release ma DLL w EXE.
 - Radio z OpenGD77 podlaczone jako port COM, jesli kodujesz AMBE.
 
 Dla pracy ze zrodel:
@@ -73,4 +73,4 @@ dist\OpenGD77PromptStudio.exe
 
 ## Status
 
-Wersja projektu: `0.2.0`.
+Wersja projektu: `0.3.0`.

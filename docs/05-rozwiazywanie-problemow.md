@@ -26,7 +26,7 @@ Jezeli plik jest zwyklym pluginem NVDA albo dodatkiem innego syntezatora, progra
 
 ## Brak RHVoice.dll
 
-Dla zrodla `Dodatek NVDA/RHVoice` potrzebny jest silnik RHVoice. Program szuka go w tych miejscach:
+Dla zrodla `Dodatek NVDA/RHVoice` potrzebny jest silnik RHVoice. Gotowy EXE z release ma go wbudowanego. Jezeli uzywasz builda bez wbudowanego silnika, program szuka go w tych miejscach:
 
 - sciezka wpisana w polu `RHVoice.dll`,
 - zmienna srodowiskowa `RHVOICE_DLL`,
