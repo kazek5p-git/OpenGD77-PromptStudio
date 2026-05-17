@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.7"
+PROGRAM_VERSION = "0.4.8"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -1644,6 +1644,11 @@ def run_wx_gui():
                 return (wx.ACC_OK, self._helpText)
             return (wx.ACC_NOT_IMPLEMENTED, "")
 
+        def GetDescription(self, childId):
+            if childId == wx.ACC_SELF:
+                return (wx.ACC_OK, self._helpText)
+            return (wx.ACC_NOT_IMPLEMENTED, "")
+
     frame = wx.Frame(None, title=PROGRAM_NAME + " - " + trText("dostępne GUI"), size=(1040, 820))
     frame.SetMinSize((920, 700))
     panel = wx.ScrolledWindow(frame)
@@ -2341,17 +2346,23 @@ def run_wx_gui():
             return str(index + 1) + " of " + str(len(tabTitles))
         return str(index + 1) + " z " + str(len(tabTitles))
 
-    def tabAccessibleName(index):
+    def tabPositionDescription(index):
         if uiLanguage == "en":
-            return "Tab " + tabPositionText(index) + ": " + tabTitles[index]
-        return "Zakladka " + tabPositionText(index) + ": " + tabTitles[index]
+            return "Tab " + tabPositionText(index)
+        return "Zakladka " + tabPositionText(index)
+
+    def tabAccessibleName(index):
+        return tabTitles[index]
+
+    def tabStatusText(index):
+        return tabTitles[index] + ". " + tabPositionDescription(index)
 
     tabButtons = []
     for pos, title in enumerate(tabTitles):
         style = wx.RB_GROUP if pos == 0 else 0
-        label = title + " (" + tabPositionText(pos) + ")"
+        label = title
         name = tabAccessibleName(pos)
-        tabButton = named(wx.RadioButton(panel, label=label, style=style), name, name + ".")
+        tabButton = named(wx.RadioButton(panel, label=label, style=style), name, tabPositionDescription(pos))
         tabButton.SetValue(pos == 0)
         tabButtons.append(tabButton)
         tabNavBox.Add(tabButton, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
@@ -2410,7 +2421,7 @@ def run_wx_gui():
         notebook.SetSelection(index)
         for pos, tabButton in enumerate(tabButtons):
             tabButton.SetValue(pos == index)
-        setStatus(tabAccessibleName(index))
+        setStatus(tabStatusText(index))
         if focusTab:
             wx.CallAfter(focusTabButton, index)
 

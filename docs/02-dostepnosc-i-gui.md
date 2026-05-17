@@ -43,7 +43,7 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 
 ### Pasek zakladek
 
-`Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc` sa radiobuttonami. Kazdy radiobutton ma w nazwie numer pozycji, na przyklad `Zakladka 1 z 5: Projekt`. Oznaczony radiobutton pokazuje aktywna zakladke. `Poprzednia` i `Nastepna` przelaczaja zakladki bez uzywania skrotow klawiaturowych.
+`Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc` sa radiobuttonami. Kazdy radiobutton ma jako nazwe sama nazwe zakladki, a numer pozycji jest podany jako opis, na przyklad `Projekt`, opis `Zakladka 1 z 5`. Oznaczony radiobutton pokazuje aktywna zakladke. `Poprzednia` i `Nastepna` przelaczaja zakladki bez uzywania skrotow klawiaturowych.
 
 ### Zakladka Projekt
 

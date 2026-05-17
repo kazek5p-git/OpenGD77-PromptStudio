@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## 0.4.8 - 2026-05-18
+
+- Zmieniono dostepne nazwy zakladek: czytnik ekranu najpierw dostaje nazwe zakladki, a numer pozycji jako opis, np. `Projekt`, potem `Zakladka 1 z 5`.
+
 ## 0.4.7 - 2026-05-18
 
 - Po zmianie jezyka interfejsu program pyta, czy uruchomic sie ponownie od razu.
