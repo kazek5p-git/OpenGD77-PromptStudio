@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.3.1"
+PROGRAM_VERSION = "0.3.2"
 
 
 def is_frozen_app():
@@ -636,6 +636,16 @@ class RHVoiceFileSynthesizer:
         return profile
 
 
+def writeSilentPromptWav(wavPath, sampleRate=24000, durationMs=120):
+    sampleCount = max(1, int(sampleRate * durationMs / 1000))
+    os.makedirs(os.path.dirname(os.path.abspath(wavPath)), exist_ok=True)
+    with wave.open(wavPath, "wb") as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)
+        wf.setframerate(sampleRate)
+        wf.writeframes(b"\x00\x00" * sampleCount)
+
+
 def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
     print("Using RHVoice NVDA add-on: " + addonPath)
     addonDir, addonInfo = preparedRhvoiceAddonDir(addonPath, os.getcwd())
@@ -659,8 +669,12 @@ def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
                 rawFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".raw"
                 ambeFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".amb"
                 if (not os.path.exists(wavFileName)) or overwrite == True:
-                    usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile)
-                    print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile)
+                    if not promptText.strip():
+                        writeSilentPromptWav(wavFileName)
+                        print("RHVoice: " + promptName + " -> " + wavFileName + " silence")
+                    else:
+                        usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile)
+                        print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile)
                 if (not os.path.exists(rawFileName)) or overwrite == True:
                     convertToRaw(wavFileName, rawFileName)
                     if os.path.exists(ambeFileName):

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 - 2026-05-17
+
+- Puste wpisy w wordliscie, na przyk?ad `PROMPT_SPACE`, sa teraz zapisywane jako krotka cisza zamiast przerywac synteze RHVoice.
+
 ## 0.3.1 - 2026-05-17
 
 - Zmieniono GUI z Tkinter na wxPython, bo NVDA nie odczytywal poprawnie kontrolek Tk w gotowym EXE.
