@@ -16,12 +16,15 @@ import ntpath
 import shutil
 import webbrowser
 import re
+import zipfile
+import wave
+import hashlib
 from ctypes import *
 import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.1.0"
+PROGRAM_VERSION = "0.2.0"
 
 
 def is_frozen_app():
@@ -44,6 +47,8 @@ gain = '0'
 atempo = '1.5'
 atempoAlias = ""
 removeSilenceAtStart = False
+nvdaAddonPath = ""
+rhvoiceDllPath = ""
 # PollyPro is not working
 forceTTSMP3Usage = True
 
@@ -355,6 +360,314 @@ def convertToRaw(inFile,outFile):
     elif os.name == 'posix':
         subprocess.call(callArgs)#'-af','silenceremove=1:0:-50dB'
 
+
+def parseSimpleInfo(text):
+    values = {}
+    for line in text.splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        values[key.strip()] = value.strip().strip('"')
+    return values
+
+
+def safeExtractZip(zipPath, targetDir):
+    targetAbs = os.path.abspath(targetDir)
+    with zipfile.ZipFile(zipPath, "r") as zf:
+        for member in zf.infolist():
+            name = member.filename.replace("\\", "/")
+            if name.startswith("/") or name.startswith("../") or "/../" in name:
+                raise RuntimeError("Unsafe path in add-on archive: " + member.filename)
+            dest = os.path.abspath(os.path.join(targetAbs, *name.split("/")))
+            if not (dest == targetAbs or dest.startswith(targetAbs + os.path.sep)):
+                raise RuntimeError("Unsafe path in add-on archive: " + member.filename)
+        zf.extractall(targetAbs)
+
+
+def inspectNvdaAddon(addonPath):
+    if not addonPath:
+        raise RuntimeError("No NVDA add-on path was provided.")
+    if not os.path.exists(addonPath):
+        raise RuntimeError("NVDA add-on file not found: " + addonPath)
+    try:
+        with zipfile.ZipFile(addonPath, "r") as zf:
+            names = {name.replace("\\", "/") for name in zf.namelist()}
+            if "data/voice.info" not in names or "data/voice.params" not in names:
+                raise RuntimeError("This .nvda-addon is not an RHVoice voice package. Expected data/voice.info and data/voice.params.")
+            if not any(name.startswith("langdata/") for name in names):
+                raise RuntimeError("This RHVoice voice add-on does not contain langdata. Add a matching RHVoice language add-on or use a complete voice package.")
+            manifest = {}
+            voice = {}
+            if "manifest.ini" in names:
+                manifest = parseSimpleInfo(zf.read("manifest.ini").decode("utf-8", errors="replace"))
+            voice = parseSimpleInfo(zf.read("data/voice.info").decode("utf-8", errors="replace"))
+            voiceName = voice.get("name") or manifest.get("name") or os.path.splitext(os.path.basename(addonPath))[0]
+            language = voice.get("language", "")
+            summary = manifest.get("summary", "")
+            return {"name": voiceName, "language": language, "summary": summary}
+    except zipfile.BadZipFile:
+        raise RuntimeError("The selected .nvda-addon is not a valid ZIP archive: " + addonPath)
+
+
+def preparedRhvoiceAddonDir(addonPath, workDir):
+    info = inspectNvdaAddon(addonPath)
+    with open(addonPath, "rb") as f:
+        digest = hashlib.sha256(f.read()).hexdigest()[0:12]
+    base = os.path.splitext(os.path.basename(addonPath))[0]
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", base).strip("._") or "nvda_addon"
+    target = os.path.join(workDir, ".prompt_studio_nvda_addons", safe + "_" + digest)
+    marker = os.path.join(target, ".extracted")
+    if not os.path.exists(marker):
+        os.makedirs(target, exist_ok=True)
+        safeExtractZip(addonPath, target)
+        with open(marker, "w", encoding="utf-8") as f:
+            f.write(info.get("name", "") + "\n")
+    return target, info
+
+
+def findRhvoiceDll(explicitPath=""):
+    candidates = []
+    if explicitPath:
+        candidates.append(explicitPath)
+    envPath = os.environ.get("RHVOICE_DLL", "").strip()
+    if envPath:
+        candidates.append(envPath)
+    bases = []
+    if getattr(sys, "_MEIPASS", None):
+        bases.append(sys._MEIPASS)
+    bases.append(application_base_dir())
+    for base in bases:
+        candidates.extend([
+            os.path.join(base, "RHVoice.dll"),
+            os.path.join(base, "rhvoice", "RHVoice.dll"),
+            os.path.join(base, "lib", "x64", "RHVoice.dll"),
+        ])
+    appdata = os.environ.get("APPDATA", "")
+    if appdata:
+        for nvdaName in ["NVDA", "nvda"]:
+            candidates.append(os.path.join(appdata, nvdaName, "addons", "RHVoice", "synthDrivers", "RHVoice", "lib", "x64", "RHVoice.dll"))
+            candidates.append(os.path.join(appdata, nvdaName, "addons", "RHVoice", "synthDrivers", "RHVoice", "lib", "x86", "RHVoice.dll"))
+    for candidate in candidates:
+        if candidate and os.path.exists(candidate):
+            return os.path.abspath(candidate)
+    raise RuntimeError("RHVoice.dll was not found. Install the RHVoice NVDA add-on, set RHVOICE_DLL, or copy RHVoice.dll next to the program.")
+
+
+class RHVoiceEngineStruct(Structure):
+    pass
+
+
+RHVoiceEnginePtr = POINTER(RHVoiceEngineStruct)
+
+
+class RHVoiceMessageStruct(Structure):
+    pass
+
+
+RHVoiceMessagePtr = POINTER(RHVoiceMessageStruct)
+RHVoiceSetSampleRateCallback = CFUNCTYPE(c_int, c_int, c_void_p)
+RHVoicePlaySpeechCallback = CFUNCTYPE(c_int, POINTER(c_short), c_uint, c_void_p)
+RHVoiceProcessMarkCallback = CFUNCTYPE(c_int, c_char_p, c_void_p)
+RHVoiceWordCallback = CFUNCTYPE(c_int, c_uint, c_uint, c_void_p)
+RHVoicePlayAudioCallback = CFUNCTYPE(c_int, c_char_p, c_void_p)
+RHVoiceDoneCallback = CFUNCTYPE(None, c_void_p)
+
+
+class RHVoiceCallbacks(Structure):
+    _fields_ = [
+        ("set_sample_rate", RHVoiceSetSampleRateCallback),
+        ("play_speech", RHVoicePlaySpeechCallback),
+        ("process_mark", RHVoiceProcessMarkCallback),
+        ("word_starts", RHVoiceWordCallback),
+        ("word_ends", RHVoiceWordCallback),
+        ("sentence_starts", RHVoiceWordCallback),
+        ("sentence_ends", RHVoiceWordCallback),
+        ("play_audio", RHVoicePlayAudioCallback),
+        ("done", RHVoiceDoneCallback),
+    ]
+
+
+class RHVoiceInitParams(Structure):
+    _fields_ = [
+        ("data_path", c_char_p),
+        ("config_path", c_char_p),
+        ("resource_paths", POINTER(c_char_p)),
+        ("callbacks", RHVoiceCallbacks),
+        ("options", c_uint),
+    ]
+
+
+class RHVoiceSynthParams(Structure):
+    _fields_ = [
+        ("voice_profile", c_char_p),
+        ("absolute_rate", c_double),
+        ("absolute_pitch", c_double),
+        ("absolute_volume", c_double),
+        ("relative_rate", c_double),
+        ("relative_pitch", c_double),
+        ("relative_volume", c_double),
+        ("punctuation_mode", c_int),
+        ("punctuation_list", c_char_p),
+        ("capitals_mode", c_int),
+        ("flags", c_int),
+    ]
+
+
+class RHVoiceFileSynthesizer:
+    def __init__(self, resourceDirs, configDir, dllPath=""):
+        self.dllPath = findRhvoiceDll(dllPath)
+        self.lib = CDLL(self.dllPath)
+        self.lib.RHVoice_get_version.restype = c_char_p
+        self.lib.RHVoice_new_tts_engine.argtypes = (POINTER(RHVoiceInitParams),)
+        self.lib.RHVoice_new_tts_engine.restype = RHVoiceEnginePtr
+        self.lib.RHVoice_delete_tts_engine.argtypes = (RHVoiceEnginePtr,)
+        self.lib.RHVoice_delete_tts_engine.restype = None
+        self.lib.RHVoice_get_number_of_voice_profiles.argtypes = (RHVoiceEnginePtr,)
+        self.lib.RHVoice_get_number_of_voice_profiles.restype = c_uint
+        self.lib.RHVoice_get_voice_profiles.argtypes = (RHVoiceEnginePtr,)
+        self.lib.RHVoice_get_voice_profiles.restype = POINTER(c_char_p)
+        self.lib.RHVoice_new_message.argtypes = (RHVoiceEnginePtr, c_char_p, c_uint, c_int, POINTER(RHVoiceSynthParams), c_void_p)
+        self.lib.RHVoice_new_message.restype = RHVoiceMessagePtr
+        self.lib.RHVoice_speak.argtypes = (RHVoiceMessagePtr,)
+        self.lib.RHVoice_speak.restype = c_int
+        self.lib.RHVoice_delete_message.argtypes = (RHVoiceMessagePtr,)
+        self.lib.RHVoice_delete_message.restype = None
+        os.makedirs(configDir, exist_ok=True)
+        self.sampleRate = 0
+        self.chunks = []
+        self._setSampleRateCb = RHVoiceSetSampleRateCallback(self._setSampleRate)
+        self._playSpeechCb = RHVoicePlaySpeechCallback(self._playSpeech)
+        self._processMarkCb = RHVoiceProcessMarkCallback(self._processMark)
+        self._playAudioCb = RHVoicePlayAudioCallback(self._playAudio)
+        self._doneCb = RHVoiceDoneCallback(self._done)
+        encoded = [os.path.abspath(path).encode("utf-8") for path in resourceDirs if os.path.isdir(path)]
+        if not encoded:
+            raise RuntimeError("No RHVoice resource directories were found.")
+        self._resourceArray = (c_char_p * (len(encoded) + 1))(*(encoded + [None]))
+        callbacks = RHVoiceCallbacks(
+            self._setSampleRateCb,
+            self._playSpeechCb,
+            self._processMarkCb,
+            cast(None, RHVoiceWordCallback),
+            cast(None, RHVoiceWordCallback),
+            cast(None, RHVoiceWordCallback),
+            cast(None, RHVoiceWordCallback),
+            self._playAudioCb,
+            self._doneCb,
+        )
+        initParams = RHVoiceInitParams(
+            None,
+            os.path.abspath(configDir).encode("utf-8"),
+            self._resourceArray,
+            callbacks,
+            0,
+        )
+        self.engine = self.lib.RHVoice_new_tts_engine(byref(initParams))
+        if not self.engine:
+            raise RuntimeError("RHVoice initialization failed.")
+        self.voiceProfiles = self._readVoiceProfiles()
+        if not self.voiceProfiles:
+            raise RuntimeError("RHVoice did not report any voice profiles for the selected add-on.")
+        version = self.lib.RHVoice_get_version()
+        print("RHVoice engine: " + (version.decode("utf-8", errors="replace") if version else "unknown") + " (" + self.dllPath + ")")
+        print("RHVoice profiles: " + ", ".join(self.voiceProfiles))
+
+    def _readVoiceProfiles(self):
+        count = self.lib.RHVoice_get_number_of_voice_profiles(self.engine)
+        native = self.lib.RHVoice_get_voice_profiles(self.engine)
+        return [native[i].decode("utf-8", errors="replace") for i in range(count)]
+
+    def close(self):
+        if getattr(self, "engine", None):
+            self.lib.RHVoice_delete_tts_engine(self.engine)
+            self.engine = None
+
+    def _setSampleRate(self, sampleRate, userData):
+        self.sampleRate = int(sampleRate)
+        return 1
+
+    def _playSpeech(self, samples, count, userData):
+        self.chunks.append(string_at(samples, int(count) * sizeof(c_short)))
+        return 1
+
+    def _processMark(self, name, userData):
+        return 1
+
+    def _playAudio(self, path, userData):
+        return 1
+
+    def _done(self, userData):
+        return None
+
+    def synthesizeToWav(self, text, wavPath, requestedProfile=""):
+        profile = requestedProfile if requestedProfile in self.voiceProfiles else self.voiceProfiles[0]
+        self.sampleRate = 0
+        self.chunks = []
+        encodedText = text.encode("utf-8", errors="ignore")
+        params = RHVoiceSynthParams(
+            profile.encode("utf-8"),
+            0,
+            0,
+            0,
+            1,
+            1,
+            1,
+            0,
+            None,
+            0,
+            0,
+        )
+        msg = self.lib.RHVoice_new_message(self.engine, encodedText, len(encodedText), 0, byref(params), None)
+        if not msg:
+            raise RuntimeError("RHVoice could not create a message for text: " + text)
+        try:
+            result = self.lib.RHVoice_speak(msg)
+        finally:
+            self.lib.RHVoice_delete_message(msg)
+        if result != 1 or not self.chunks:
+            raise RuntimeError("RHVoice synthesis failed for text: " + text)
+        os.makedirs(os.path.dirname(os.path.abspath(wavPath)), exist_ok=True)
+        with wave.open(wavPath, "wb") as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(self.sampleRate or 24000)
+            wf.writeframes(b"".join(self.chunks))
+        return profile
+
+
+def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
+    print("Using RHVoice NVDA add-on: " + addonPath)
+    addonDir, addonInfo = preparedRhvoiceAddonDir(addonPath, os.getcwd())
+    print("RHVoice add-on voice: " + addonInfo.get("name", "unknown") + " " + addonInfo.get("language", ""))
+    resourceDirs = [
+        os.path.join(addonDir, "data"),
+        os.path.join(addonDir, "langdata"),
+        os.path.join(addonDir, "lang2data"),
+    ]
+    configDir = os.path.join(os.getcwd(), ".prompt_studio_rhvoice_config")
+    ensureVoiceFolders(voiceName)
+    synth = RHVoiceFileSynthesizer(resourceDirs, configDir, dllPath)
+    try:
+        requestedProfile = voiceName.strip()
+        with open(filename, "r", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(filter(lambda row: row[0] != '#', csvfile))
+            for row in reader:
+                promptName = row['PromptName'].strip()
+                promptText = row['PromptSpeechPrefix'].strip() + row['PromptText'] + row['PromptSpeechPostfix'].strip()
+                wavFileName = voiceName + os.path.sep + promptName + ".wav"
+                rawFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".raw"
+                ambeFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".amb"
+                if (not os.path.exists(wavFileName)) or overwrite == True:
+                    usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile)
+                    print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile)
+                if (not os.path.exists(rawFileName)) or overwrite == True:
+                    convertToRaw(wavFileName, rawFileName)
+                    if os.path.exists(ambeFileName):
+                        os.remove(ambeFileName)
+    finally:
+        synth.close()
+
 def downloadPollyPro(voiceName,fileStub,promptText,speechSpeed):
     global atempo
     retval=True
@@ -571,6 +884,8 @@ def usage(message=""):
     ##print("    -n=<Voice_name>       : Voice name for synthesised speech from Voicepolly.pro and temporary folder name")
     ##print("    -s                    : Download synthesised speech from Voicepolly.pro")
     print("    -T                    : Download synthesised speech from ttsmp3.com")
+    print("    -N=<nvda_addon>       : Synthesize speech from an RHVoice .nvda-addon")
+    print("    -L=<RHVoice.dll>      : Optional path to RHVoice.dll")
     print("    -e                    : Encode previous download synthesised speech files, using the GD-77")
     print("    -b                    : Build voice prompts data pack from Encoded spech files ")
     print("    -d=<device>           : Use the specified device as serial port,")
@@ -602,6 +917,7 @@ def main(argv=None):
     global atempo
     global atempoAlias
     global removeSilenceAtStart, forceTTSMP3Usage
+    global nvdaAddonPath, rhvoiceDllPath
 
     if argv is None:
         argv = sys.argv[1:]
@@ -625,7 +941,7 @@ def main(argv=None):
     # Command line argument parsing
     try:
         ##opts, args = getopt.getopt(sys.argv[1:], "hof:n:seb:d:c:g:Tt:")
-        opts, args = getopt.getopt(argv, "hon:f:eb:d:c:g:Tt:A:r", ["help"])
+        opts, args = getopt.getopt(argv, "hon:f:eb:d:c:g:Tt:A:rN:L:", ["help"])
     except getopt.GetoptError as err:
         print(str(err))
         usage("")
@@ -651,6 +967,10 @@ def main(argv=None):
             removeSilenceAtStart = True
         elif opt in ("-T"):
             forceTTSMP3Usage = True
+        elif opt in ("-N"):
+            nvdaAddonPath = arg
+        elif opt in ("-L"):
+            rhvoiceDllPath = arg
         elif opt in ('-t'):
             atempo = arg
         elif opt in ('-A'):
@@ -669,7 +989,7 @@ def main(argv=None):
                     configNeedsDownload = True
                     break
 
-    needsFfmpeg = configNeedsDownload or any(opt == "-T" for opt, arg in opts)
+    needsFfmpeg = configNeedsDownload or any(opt in ("-T", "-N") for opt, arg in opts)
     if needsFfmpeg and not ffmpegAvailable():
         usage("ERROR: You must install ffmpeg. See https://www.ffmpeg.org/download.html")
         #webbrowser.open("https://www.ffmpeg.org/download.html")
@@ -690,6 +1010,8 @@ def main(argv=None):
                 gain = row['Volume_change_db'].strip()
                 rs = row['Remove_silence'].strip()
                 cfg_atempo = row['Audio_tempo'].strip()
+                cfg_nvda_addon = row.get('Nvda_addon_file', '').strip()
+                cfg_rhvoice_dll = row.get('RHVoice_dll', '').strip()
 
                 ## If Audio_tempo is not set, use the default value
                 if cfg_atempo != '':
@@ -708,8 +1030,15 @@ def main(argv=None):
                     removeSilenceAtStart = False
 
                 if (download=='y' or download=='Y'):
-                    if (downloadSpeechForWordList(wordlistFilename,voiceName)==False):
-                     sys.exit(2)
+                    if cfg_nvda_addon:
+                        try:
+                            synthesizeRhvoiceForWordList(wordlistFilename, voiceName, cfg_nvda_addon, cfg_rhvoice_dll)
+                        except Exception as err:
+                            usage("ERROR: " + str(err))
+                            sys.exit(2)
+                    else:
+                        if (downloadSpeechForWordList(wordlistFilename,voiceName)==False):
+                         sys.exit(2)
 
                 if (encode=='y' or encode=='Y'):
                     ser = serialInit(serialDev)
@@ -733,10 +1062,17 @@ def main(argv=None):
 
     ensureVoiceFolders(voiceName)
 
-    for opt, arg in opts:
-        if opt in ("-T"):
-            if (downloadSpeechForWordList(fileName,voiceName)==False):
-                sys.exit(2)
+    if nvdaAddonPath:
+        try:
+            synthesizeRhvoiceForWordList(fileName, voiceName, nvdaAddonPath, rhvoiceDllPath)
+        except Exception as err:
+            usage("ERROR: " + str(err))
+            sys.exit(2)
+    else:
+        for opt, arg in opts:
+            if opt in ("-T"):
+                if (downloadSpeechForWordList(fileName,voiceName)==False):
+                    sys.exit(2)
 
     for opt, arg in opts:
         if opt in ("-e"):
@@ -787,10 +1123,16 @@ def run_accessible_gui():
                 return candidate
         return ""
 
+    def findRhvoiceDllHint():
+        try:
+            return findRhvoiceDll("")
+        except Exception:
+            return ""
+
     root = tk.Tk()
     root.title(PROGRAM_NAME + " - dostępne GUI")
-    root.geometry("940x720")
-    root.minsize(840, 620)
+    root.geometry("1040x820")
+    root.minsize(920, 700)
 
     modeVar = tk.StringVar(value="manual")
     configPathVar = tk.StringVar()
@@ -799,6 +1141,9 @@ def run_accessible_gui():
     outputPathVar = tk.StringVar(value=os.path.join(scriptDir, "voice_prompts.vpr"))
     workDirVar = tk.StringVar(value=scriptDir)
     serialPortVar = tk.StringVar()
+    speechSourceVar = tk.StringVar(value="ttsmp3")
+    nvdaAddonPathVar = tk.StringVar()
+    rhvoiceDllPathVar = tk.StringVar(value=findRhvoiceDllHint())
     ffmpegPathVar = tk.StringVar(value=findFfmpegHint())
     gainVar = tk.StringVar(value=gain)
     tempoVar = tk.StringVar(value=atempo)
@@ -849,6 +1194,25 @@ def run_accessible_gui():
         if path:
             var.set(path)
 
+    def browseNvdaAddon():
+        path = filedialog.askopenfilename(
+            title="Wybierz dodatek NVDA z glosem RHVoice",
+            initialdir=workDirVar.get().strip() or scriptDir,
+            filetypes=[("Dodatek NVDA", "*.nvda-addon"), ("Wszystkie pliki", "*.*")]
+        )
+        if not path:
+            return
+        nvdaAddonPathVar.set(path)
+        speechSourceVar.set("nvda")
+        try:
+            info = inspectNvdaAddon(path)
+            if (not voiceNameVar.get().strip()) or voiceNameVar.get().strip().lower() in ("polish", "voice"):
+                voiceNameVar.set(info.get("name", "RHVoice"))
+            setStatus("Wybrano dodatek RHVoice: " + info.get("name", "") + " " + info.get("language", ""))
+        except Exception as err:
+            setStatus("Dodatek NVDA nie jest obslugiwanym glosem RHVoice.")
+            messagebox.showerror("Dodatek NVDA", str(err), parent=root)
+
     def refreshPorts():
         ports = []
         try:
@@ -893,6 +1257,25 @@ def run_accessible_gui():
         else:
             messages.append("ffmpeg: BRAK. Wybierz ffmpeg.exe albo dodaj ffmpeg do PATH.")
 
+        addonCandidate = nvdaAddonPathVar.get().strip()
+        if addonCandidate:
+            try:
+                info = inspectNvdaAddon(addonCandidate)
+                messages.append("NVDA/RHVoice add-on: OK (" + info.get("name", "unknown") + ")")
+            except Exception as err:
+                messages.append("NVDA/RHVoice add-on: ERROR - " + str(err))
+        elif speechSourceVar.get() == "nvda":
+            messages.append("NVDA/RHVoice add-on: missing .nvda-addon path.")
+
+        if speechSourceVar.get() == "nvda" or addonCandidate or rhvoiceDllPathVar.get().strip():
+            try:
+                dll = findRhvoiceDll(rhvoiceDllPathVar.get().strip())
+                messages.append("RHVoice.dll: OK (" + dll + ")")
+            except Exception as err:
+                messages.append("RHVoice.dll: ERROR - " + str(err))
+        else:
+            messages.append("RHVoice.dll: skipped because TTSMP3 is selected.")
+
         appendLog("Test zależności:")
         for message in messages:
             appendLog("  " + message)
@@ -918,7 +1301,15 @@ def run_accessible_gui():
             if serialPortVar.get().strip():
                 args.extend(["-d", serialPortVar.get().strip()])
             if downloadVar.get():
-                args.append("-T")
+                if speechSourceVar.get() == "nvda":
+                    addonPath = nvdaAddonPathVar.get().strip()
+                    if not addonPath:
+                        raise ValueError("Wybierz plik .nvda-addon z glosem RHVoice.")
+                    args.extend(["-N", addonPath])
+                    if rhvoiceDllPathVar.get().strip():
+                        args.extend(["-L", rhvoiceDllPathVar.get().strip()])
+                else:
+                    args.append("-T")
             if encodeVar.get():
                 args.append("-e")
             if buildVar.get():
@@ -959,6 +1350,8 @@ def run_accessible_gui():
         ffmpegCandidate = ffmpegPathVar.get().strip()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             env["PATH"] = os.path.dirname(ffmpegCandidate) + os.pathsep + env.get("PATH", "")
+        if rhvoiceDllPathVar.get().strip():
+            env["RHVOICE_DLL"] = rhvoiceDllPathVar.get().strip()
 
         if is_frozen_app():
             command = [sys.executable] + args
@@ -1112,6 +1505,24 @@ def run_accessible_gui():
     encodeCheck.grid(row=0, column=1, sticky="w", padx=(0, 14))
     buildCheck.grid(row=0, column=2, sticky="w")
 
+    speechFrame = tk.LabelFrame(mainFrame, text="Zrodlo mowy")
+    speechFrame.pack(fill="x", pady=(8, 0))
+    speechTtsRadio = tk.Radiobutton(speechFrame, text="TTSMP3", variable=speechSourceVar, value="ttsmp3")
+    speechNvdaRadio = tk.Radiobutton(speechFrame, text="Dodatek NVDA/RHVoice", variable=speechSourceVar, value="nvda")
+    speechTtsRadio.grid(row=0, column=0, sticky="w", padx=6, pady=4)
+    speechNvdaRadio.grid(row=0, column=1, sticky="w", padx=6, pady=4)
+    tk.Label(speechFrame, text="Plik .nvda-addon:").grid(row=1, column=0, sticky="w", padx=6, pady=4)
+    nvdaAddonEntry = tk.Entry(speechFrame, textvariable=nvdaAddonPathVar)
+    nvdaAddonEntry.grid(row=1, column=1, sticky="ew", padx=6, pady=4)
+    nvdaAddonBrowse = tk.Button(speechFrame, text="Wybierz...", command=browseNvdaAddon)
+    nvdaAddonBrowse.grid(row=1, column=2, padx=6, pady=4)
+    tk.Label(speechFrame, text="RHVoice.dll:").grid(row=2, column=0, sticky="w", padx=6, pady=4)
+    rhvoiceDllEntry = tk.Entry(speechFrame, textvariable=rhvoiceDllPathVar)
+    rhvoiceDllEntry.grid(row=2, column=1, sticky="ew", padx=6, pady=4)
+    rhvoiceDllBrowse = tk.Button(speechFrame, text="Wybierz...", command=lambda: browseFile(rhvoiceDllPathVar, "Wybierz RHVoice.dll", [("RHVoice.dll", "RHVoice.dll"), ("DLL", "*.dll"), ("Wszystkie pliki", "*.*")]))
+    rhvoiceDllBrowse.grid(row=2, column=2, padx=6, pady=4)
+    speechFrame.columnconfigure(1, weight=1)
+
     optionsFrame = tk.LabelFrame(mainFrame, text="Opcje")
     optionsFrame.pack(fill="x", pady=(8, 0))
     tk.Label(optionsFrame, text="Folder roboczy:").grid(row=0, column=0, sticky="w", padx=6, pady=4)
@@ -1168,7 +1579,8 @@ def run_accessible_gui():
     configWidgets = [configEntry, configBrowse]
     manualWidgets = [
         wordlistEntry, wordlistBrowse, voiceEntry, outputEntry, outputBrowse,
-        serialEntry, refreshPortsButton, portsList, downloadCheck, encodeCheck, buildCheck
+        serialEntry, refreshPortsButton, portsList, downloadCheck, encodeCheck, buildCheck,
+        speechTtsRadio, speechNvdaRadio, nvdaAddonEntry, nvdaAddonBrowse, rhvoiceDllEntry, rhvoiceDllBrowse
     ]
 
     for widget, text in [
@@ -1180,6 +1592,10 @@ def run_accessible_gui():
         (portsList, "Lista wykrytych portów. Strzałkami wybierz port."),
         (workDirEntry, "Folder roboczy dla plików tymczasowych i ścieżek względnych."),
         (ffmpegEntry, "Ścieżka do ffmpeg.exe albo puste, jeśli ffmpeg jest w PATH."),
+        (speechTtsRadio, "Zrodlo mowy: internetowa usluga TTSMP3."),
+        (speechNvdaRadio, "Zrodlo mowy: lokalny glos RHVoice z dodatku NVDA."),
+        (nvdaAddonEntry, "Plik .nvda-addon zawierajacy glos RHVoice."),
+        (rhvoiceDllEntry, "Opcjonalna sciezka do RHVoice.dll. Puste oznacza automatyczne wykrywanie."),
         (gainEntry, "Zmiana głośności w decybelach."),
         (tempoEntry, "Tempo audio od 0.5 do 2."),
         (aliasEntry, "Opcjonalny alias tempa używany w nazwie pliku."),

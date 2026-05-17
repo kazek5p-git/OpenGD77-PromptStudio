@@ -1,35 +1,51 @@
-# Rozwiązywanie problemów
+# Rozwiazywanie problemow
 
 ## Program nie startuje
 
-Uruchom build z konsolą diagnostyczną:
+Uruchom build z konsola diagnostyczna:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\scripts\build-onefile.ps1 -Console
 ```
 
-Potem uruchom `dist\OpenGD77PromptStudio.exe` z PowerShella i sprawdź komunikat.
+Potem uruchom `dist\OpenGD77PromptStudio.exe` z PowerShella i sprawdz komunikat.
 
 ## Brak ffmpeg
 
-Jeśli zaznaczasz pobieranie mowy, program potrzebuje `ffmpeg.exe`. Możesz:
+Jesli zaznaczasz tworzenie mowy, program potrzebuje `ffmpeg.exe`. Mozesz:
 
-- wpisać ścieżkę w polu `ffmpeg.exe`,
-- skopiować `ffmpeg.exe` obok EXE,
-- dodać folder ffmpeg do PATH.
+- wpisac sciezke w polu `ffmpeg.exe`,
+- skopiowac `ffmpeg.exe` obok EXE,
+- dodac folder ffmpeg do PATH.
+
+## Dodatek NVDA nie dziala
+
+Program obsluguje tylko glosy RHVoice w paczkach `.nvda-addon`. Taki dodatek musi zawierac `data/voice.info`, `data/voice.params` i `langdata`.
+
+Jezeli plik jest zwyklym pluginem NVDA albo dodatkiem innego syntezatora, program pokaze blad, ze to nie jest glos RHVoice.
+
+## Brak RHVoice.dll
+
+Dla zrodla `Dodatek NVDA/RHVoice` potrzebny jest silnik RHVoice. Program szuka go w tych miejscach:
+
+- sciezka wpisana w polu `RHVoice.dll`,
+- zmienna srodowiskowa `RHVOICE_DLL`,
+- plik `RHVoice.dll` obok EXE,
+- folder `rhvoice\RHVoice.dll` obok EXE,
+- zainstalowany dodatek NVDA `RHVoice` w profilu uzytkownika.
 
 ## Brak portu COM radia
 
-Naciśnij `F5`. Jeśli port nadal się nie pojawia, sprawdź sterownik USB i czy radio jest widoczne w Menedżerze urządzeń.
+Nacisnij `F5`. Jesli port nadal sie nie pojawia, sprawdz sterownik USB i czy radio jest widoczne w Menedzerze urzadzen.
 
-## Kodowanie AMBE nie działa
+## Kodowanie AMBE nie dziala
 
-Kodowanie wymaga radia z OpenGD77, które obsługuje komendy używane przez builder. Sam komputer nie koduje AMBE.
+Kodowanie wymaga radia z OpenGD77, ktore obsluguje komendy uzywane przez builder. Sam komputer nie koduje AMBE.
 
-## Plik VPR jest za duży
+## Plik VPR jest za duzy
 
-Kod usuwa plik, jeśli przekroczy limit `0x28C00` bajtów. Pomaga skrócenie komunikatów, mniejsza liczba promptów albo spokojniejsze ustawienia TTS, które generują krótszy dźwięk.
+Kod usuwa plik, jesli przekroczy limit `0x28C00` bajtow. Pomaga skrocenie komunikatow, mniejsza liczba promptow albo spokojniejsze ustawienia TTS, ktore generuja krotszy dzwiek.
 
 ## TTSMP3 nie odpowiada
 
-TTSMP3 to zewnętrzna usługa internetowa. Jeśli zwraca błąd, spróbuj później albo użyj już pobranych plików audio i pomiń etap pobierania.
+TTSMP3 to zewnetrzna usluga internetowa. Jesli zwraca blad, sprobuj pozniej albo uzyj lokalnego zrodla RHVoice.

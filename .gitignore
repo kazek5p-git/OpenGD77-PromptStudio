@@ -15,3 +15,5 @@ dist/
 .env
 .venv/
 venv/
+.prompt_studio_nvda_addons/
+.prompt_studio_rhvoice_config/

@@ -1,42 +1,54 @@
 # OpenGD77 Prompt Studio
 
-OpenGD77 Prompt Studio to dostępne dla czytników ekranu narzędzie Windows do tworzenia pakietów komunikatów głosowych VPR dla OpenGD77.
+OpenGD77 Prompt Studio to dostepne dla czytnikow ekranu narzedzie Windows do tworzenia pakietow komunikatow glosowych VPR dla OpenGD77.
 
-Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporządkowany jako osobny projekt z GUI, dokumentacją, przykładami i buildem do jednego pliku EXE.
+Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany jako osobny projekt z GUI, dokumentacja, przykladami i buildem do jednego pliku EXE.
 
 ## Co robi program
 
-- Pobiera mowę z TTSMP3 na podstawie pliku wordlist CSV.
+- Pobiera mowe z TTSMP3 na podstawie pliku wordlist CSV.
+- Generuje mowe lokalnie z glosu RHVoice dostarczonego jako `.nvda-addon`.
 - Konwertuje audio przez `ffmpeg` do surowego PCM 8 kHz, 16-bit, mono.
-- Koduje próbki AMBE przez radio OpenGD77 podłączone przez port COM.
+- Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.
-- Ma prosty interfejs `tkinter` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, listę portów i log.
+- Ma prosty interfejs `tkinter` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, liste portow i log.
 
-## Najszybsze użycie
+## Najszybsze uzycie
 
 1. Pobierz `OpenGD77PromptStudio.exe` z najnowszego release GitHub.
 2. Uruchom EXE.
 3. Wybierz `Wordlist CSV`.
-4. Wpisz nazwę głosu lub folderu, np. `Polish`.
-5. Wybierz operacje: pobieranie mowy, kodowanie AMBE, budowanie VPR.
-6. Wskaż port COM radia, jeśli kodujesz AMBE.
-7. Naciśnij `Uruchom Alt+R`.
+4. Wpisz nazwe glosu lub folderu, np. `Polish`, `Kazek` albo `Zuza`.
+5. Wybierz zrodlo mowy: `TTSMP3` albo `Dodatek NVDA/RHVoice`.
+6. Przy zrodle NVDA/RHVoice wskaz plik `.nvda-addon` z glosem RHVoice.
+7. Wybierz operacje: tworzenie mowy, kodowanie AMBE, budowanie VPR.
+8. Wskaz port COM radia, jesli kodujesz AMBE.
+9. Nacisnij `Uruchom Alt+R`.
 
-Szczegółowy opis jest w folderze `docs`.
+Szczegolowy opis jest w folderze `docs`.
+
+## Wazne o dodatkach NVDA
+
+Program obsluguje pliki `.nvda-addon`, ktore sa glosami RHVoice i zawieraja `data/voice.info`, `data/voice.params` oraz `langdata`.
+
+Nie kazdy dodatek NVDA jest syntezatorem albo glosem. Dodatki typu plugin, narzedzie globalne albo sterownik innego silnika zostana odrzucone z czytelnym komunikatem.
+
+Do syntezy RHVoice potrzebny jest `RHVoice.dll`. Program wykrywa go automatycznie z zainstalowanego dodatku NVDA `RHVoice`, z pliku obok EXE albo ze zmiennej `RHVOICE_DLL`.
 
 ## Wymagania
 
 Dla gotowego EXE:
 
 - Windows 10 lub Windows 11.
-- `ffmpeg.exe`, jeśli pobierasz i konwertujesz mowę.
-- Radio z OpenGD77 podłączone jako port COM, jeśli kodujesz AMBE.
+- `ffmpeg.exe`, jesli tworzysz mowe z TTSMP3 albo RHVoice.
+- `RHVoice.dll`, jesli uzywasz glosu `.nvda-addon` RHVoice.
+- Radio z OpenGD77 podlaczone jako port COM, jesli kodujesz AMBE.
 
-Dla pracy ze źródeł:
+Dla pracy ze zrodel:
 
 - Python 3.10 lub nowszy.
 - Pakiety z `requirements.txt`.
-- PyInstaller, jeśli budujesz EXE.
+- PyInstaller, jesli budujesz EXE.
 
 ## Budowanie EXE
 
@@ -57,7 +69,8 @@ dist\OpenGD77PromptStudio.exe
 - `docs/03-formaty-csv-i-vpr.md`
 - `docs/04-budowanie-exe.md`
 - `docs/05-rozwiazywanie-problemow.md`
+- `docs/06-dodatki-nvda-rhvoice.md`
 
 ## Status
 
-Wersja projektu: `0.1.0`.
+Wersja projektu: `0.2.0`.

@@ -1,2 +1,3 @@
-Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo
-examples/wordlist_sample.csv,Polish,voice_prompts.vpr,n,n,y,0,n,1.5
+Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo,Nvda_addon_file,RHVoice_dll
+examples/wordlist_sample.csv,Polish,voice_prompts.vpr,n,n,y,0,n,1.5,,
+examples/wordlist_sample.csv,Kazek,kazek_voice_prompts.vpr,y,n,n,0,n,1.0,C:/path/to/Kazek.nvda-addon,
