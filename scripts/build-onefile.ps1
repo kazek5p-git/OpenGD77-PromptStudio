@@ -57,7 +57,8 @@ $args = @(
     "--workpath", $Work,
     "--specpath", $Spec,
     "--hidden-import", "serial.tools.list_ports_windows",
-    "--hidden-import", "serial.tools.list_ports_common"
+    "--hidden-import", "serial.tools.list_ports_common",
+    "--hidden-import", "wx"
 )
 
 $bundledRhVoice = ""

@@ -11,7 +11,7 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 - Konwertuje audio przez `ffmpeg` do surowego PCM 8 kHz, 16-bit, mono.
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.
-- Ma prosty interfejs `tkinter` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, liste portow i log.
+- Ma natywny interfejs `wxPython` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, liste portow i log.
 
 ## Najszybsze uzycie
 

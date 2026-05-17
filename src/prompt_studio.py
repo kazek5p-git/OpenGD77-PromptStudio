@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.3.0"
+PROGRAM_VERSION = "0.3.1"
 
 
 def is_frozen_app():
@@ -1086,7 +1086,574 @@ def main(argv=None):
             outputName = arg
             buildDataPack(fileName,voiceName,outputName)
 
+
 def run_accessible_gui():
+    try:
+        return run_wx_gui()
+    except ImportError as err:
+        print("wxPython is not available, falling back to Tk GUI: " + str(err))
+        return run_tk_gui()
+
+
+def run_wx_gui():
+    try:
+        import wx
+        import threading
+        import queue
+    except ImportError:
+        raise
+    except Exception as err:
+        print("Unable to start GUI: " + str(err))
+        usage("")
+        return 2
+
+    scriptPath = os.path.abspath(__file__)
+    scriptDir = application_base_dir()
+    processQueue = queue.Queue()
+    currentProcess = {"proc": None}
+    portDevices = []
+
+    def consolePythonExecutable():
+        exe = sys.executable
+        if os.path.basename(exe).lower() == "pythonw.exe":
+            candidate = os.path.join(os.path.dirname(exe), "python.exe")
+            if os.path.exists(candidate):
+                return candidate
+        return exe
+
+    def findFfmpegHint():
+        found = shutil.which("ffmpeg.exe") if os.name == "nt" else shutil.which("ffmpeg")
+        if found:
+            return found
+        candidates = [
+            os.path.join(os.path.expanduser("~"), "Documents", "fmdx-webserver-src", "node_modules", "ffmpeg-static", "ffmpeg.exe"),
+            os.path.join(scriptDir, "ffmpeg.exe")
+        ]
+        for candidate in candidates:
+            if os.path.exists(candidate):
+                return candidate
+        return ""
+
+    def findRhvoiceDllHint():
+        try:
+            return findRhvoiceDll("")
+        except Exception:
+            return ""
+
+    app = wx.App(False)
+    class FixedNameAccessible(wx.Accessible):
+        def __init__(self, window, name, helpText):
+            super().__init__(window)
+            self._name = name
+            self._helpText = helpText or name
+
+        def GetName(self, childId):
+            if childId == wx.ACC_SELF:
+                return (wx.ACC_OK, self._name)
+            return (wx.ACC_NOT_IMPLEMENTED, "")
+
+        def GetHelpText(self, childId):
+            if childId == wx.ACC_SELF:
+                return (wx.ACC_OK, self._helpText)
+            return (wx.ACC_NOT_IMPLEMENTED, "")
+
+    frame = wx.Frame(None, title=PROGRAM_NAME + " - dostępne GUI", size=(1040, 820))
+    frame.SetMinSize((920, 700))
+    panel = wx.ScrolledWindow(frame)
+    panel.SetScrollRate(8, 8)
+    mainSizer = wx.BoxSizer(wx.VERTICAL)
+    panel.SetSizer(mainSizer)
+
+    def setStatus(text):
+        statusText.SetLabel(text)
+        statusText.Wrap(-1)
+        frame.SetStatusText(text)
+
+    def appendLog(text):
+        logCtrl.AppendText(text + os.linesep)
+
+    def bindStatus(ctrl, text):
+        ctrl.SetToolTip(text)
+        ctrl.SetHelpText(text)
+        ctrl.Bind(wx.EVT_SET_FOCUS, lambda event, msg=text: (setStatus(msg), event.Skip()))
+        return ctrl
+
+    def named(ctrl, name, helpText=None):
+        ctrl.SetName(name)
+        if helpText is None:
+            helpText = name
+        try:
+            accessible = FixedNameAccessible(ctrl, name, helpText)
+            ctrl.SetAccessible(accessible)
+            ctrl._promptStudioAccessible = accessible
+        except Exception:
+            pass
+        return bindStatus(ctrl, helpText)
+
+    def addRow(parentSizer, labelText, ctrl, browseButton=None):
+        row = wx.BoxSizer(wx.HORIZONTAL)
+        label = wx.StaticText(panel, label=labelText)
+        label.SetMinSize((210, -1))
+        row.Add(label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+        row.Add(ctrl, 1, wx.EXPAND | wx.RIGHT, 8)
+        if browseButton is not None:
+            row.Add(browseButton, 0, wx.ALIGN_CENTER_VERTICAL)
+        parentSizer.Add(row, 0, wx.EXPAND | wx.ALL, 4)
+        return row
+
+    def fileDialog(title, wildcard, initialPath="", save=False):
+        initialDir = os.path.dirname(initialPath) if initialPath else workDirCtrl.GetValue().strip()
+        initialFile = os.path.basename(initialPath) if initialPath else ""
+        style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT if save else wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
+        with wx.FileDialog(frame, title, defaultDir=initialDir or scriptDir, defaultFile=initialFile, wildcard=wildcard, style=style) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                return dialog.GetPath()
+        return ""
+
+    def browseFile(ctrl, title, wildcard, updateWorkDir=False):
+        path = fileDialog(title, wildcard, ctrl.GetValue().strip())
+        if path:
+            ctrl.SetValue(path)
+            if updateWorkDir:
+                workDirCtrl.SetValue(os.path.dirname(path))
+
+    def browseOutput():
+        path = fileDialog("Wybierz nazwę pliku VPR", "Pakiet VPR (*.vpr)|*.vpr|Wszystkie pliki (*.*)|*.*", outputCtrl.GetValue().strip(), save=True)
+        if path:
+            outputCtrl.SetValue(path)
+
+    def browseFolder(ctrl, title):
+        initial = ctrl.GetValue().strip() or scriptDir
+        with wx.DirDialog(frame, title, defaultPath=initial, style=wx.DD_DEFAULT_STYLE | wx.DD_DIR_MUST_EXIST) as dialog:
+            if dialog.ShowModal() == wx.ID_OK:
+                ctrl.SetValue(dialog.GetPath())
+
+    def browseNvdaAddon():
+        path = fileDialog("Wybierz dodatek NVDA z głosem RHVoice", "Dodatek NVDA (*.nvda-addon)|*.nvda-addon|Wszystkie pliki (*.*)|*.*", nvdaAddonCtrl.GetValue().strip())
+        if not path:
+            return
+        nvdaAddonCtrl.SetValue(path)
+        speechNvdaRadio.SetValue(True)
+        try:
+            info = inspectNvdaAddon(path)
+            voiceText = voiceCtrl.GetValue().strip()
+            if (not voiceText) or voiceText.lower() in ("polish", "voice"):
+                voiceCtrl.SetValue(info.get("name", "RHVoice"))
+            setStatus("Wybrano dodatek RHVoice: " + info.get("name", "") + " " + info.get("language", ""))
+        except Exception as err:
+            setStatus("Dodatek NVDA nie jest obsługiwanym głosem RHVoice.")
+            wx.MessageBox(str(err), "Dodatek NVDA", wx.OK | wx.ICON_ERROR, frame)
+
+    def refreshPorts():
+        portDevices.clear()
+        current = serialCtrl.GetValue().strip()
+        listCtrl.Clear()
+        try:
+            for port in serial.tools.list_ports.comports():
+                label = port.device
+                if port.description:
+                    label += " - " + port.description
+                portDevices.append(port.device)
+                listCtrl.Append(label)
+                if not current and port.description.find("OpenGD77") == 0:
+                    serialCtrl.SetValue(port.device)
+                    current = port.device
+        except Exception as err:
+            appendLog("Nie udało się odczytać portów COM: " + str(err))
+        if not serialCtrl.GetValue().strip() and portDevices:
+            serialCtrl.SetValue(portDevices[0])
+        setStatus("Odświeżono listę portów. Wpisz port ręcznie albo wybierz go z listy.")
+
+    def selectPortFromList(event=None):
+        selection = listCtrl.GetSelection()
+        if selection != wx.NOT_FOUND and selection < len(portDevices):
+            serialCtrl.SetValue(portDevices[selection])
+            setStatus("Wybrano port " + portDevices[selection])
+
+    def checkDependencies(event=None):
+        messages = []
+        messages.append("Python: " + consolePythonExecutable())
+        messages.append("wxPython: OK (" + wx.version() + ")")
+        try:
+            import serial as serialModule
+            messages.append("pyserial: OK (" + getattr(serialModule, "__version__", "wersja nieznana") + ")")
+        except Exception as err:
+            messages.append("pyserial: BŁĄD - " + str(err))
+
+        ffmpegCandidate = ffmpegCtrl.GetValue().strip()
+        if ffmpegCandidate and os.path.exists(ffmpegCandidate):
+            messages.append("ffmpeg: OK (" + ffmpegCandidate + ")")
+        elif ffmpegAvailable():
+            messages.append("ffmpeg: OK w PATH")
+        else:
+            messages.append("ffmpeg: BRAK. Wybierz ffmpeg.exe albo dodaj ffmpeg do PATH.")
+
+        addonCandidate = nvdaAddonCtrl.GetValue().strip()
+        if addonCandidate:
+            try:
+                info = inspectNvdaAddon(addonCandidate)
+                messages.append("NVDA/RHVoice add-on: OK (" + info.get("name", "unknown") + ")")
+            except Exception as err:
+                messages.append("NVDA/RHVoice add-on: ERROR - " + str(err))
+        elif speechNvdaRadio.GetValue():
+            messages.append("NVDA/RHVoice add-on: missing .nvda-addon path.")
+
+        if speechNvdaRadio.GetValue() or addonCandidate or rhvoiceDllCtrl.GetValue().strip():
+            try:
+                dll = findRhvoiceDll(rhvoiceDllCtrl.GetValue().strip())
+                messages.append("RHVoice.dll: OK (" + dll + ")")
+            except Exception as err:
+                messages.append("RHVoice.dll: ERROR - " + str(err))
+        else:
+            messages.append("RHVoice.dll: skipped because TTSMP3 is selected.")
+
+        appendLog("Test zależności:")
+        for message in messages:
+            appendLog("  " + message)
+        wx.MessageBox("\n".join(messages), "Test zależności", wx.OK | wx.ICON_INFORMATION, frame)
+
+    def buildCommand():
+        args = []
+        if modeConfigRadio.GetValue():
+            configPath = configCtrl.GetValue().strip()
+            if not configPath:
+                raise ValueError("Wybierz plik konfiguracyjny CSV.")
+            args.extend(["-c", configPath])
+        else:
+            wordlist = wordlistCtrl.GetValue().strip()
+            voiceName = voiceCtrl.GetValue().strip()
+            if not wordlist:
+                raise ValueError("Wybierz plik wordlist CSV.")
+            if not voiceName:
+                raise ValueError("Podaj nazwę głosu lub folderu głosu.")
+            if not (downloadCheck.GetValue() or encodeCheck.GetValue() or buildCheck.GetValue()):
+                raise ValueError("Zaznacz przynajmniej jedną operację: pobieranie, kodowanie albo budowanie VPR.")
+            args.extend(["-f", wordlist, "-n", voiceName])
+            if serialCtrl.GetValue().strip():
+                args.extend(["-d", serialCtrl.GetValue().strip()])
+            if downloadCheck.GetValue():
+                if speechNvdaRadio.GetValue():
+                    addonPath = nvdaAddonCtrl.GetValue().strip()
+                    if not addonPath:
+                        raise ValueError("Wybierz plik .nvda-addon z głosem RHVoice.")
+                    args.extend(["-N", addonPath])
+                    if rhvoiceDllCtrl.GetValue().strip():
+                        args.extend(["-L", rhvoiceDllCtrl.GetValue().strip()])
+                else:
+                    args.append("-T")
+            if encodeCheck.GetValue():
+                args.append("-e")
+            if buildCheck.GetValue():
+                outputPath = outputCtrl.GetValue().strip()
+                if not outputPath:
+                    raise ValueError("Wybierz nazwę pliku wyjściowego VPR.")
+                args.extend(["-b", outputPath])
+
+        if overwriteCheck.GetValue():
+            args.append("-o")
+        if removeSilenceCheck.GetValue():
+            args.append("-r")
+        if gainCtrl.GetValue().strip():
+            args.extend(["-g", gainCtrl.GetValue().strip()])
+        if tempoCtrl.GetValue().strip():
+            args.extend(["-t", tempoCtrl.GetValue().strip()])
+        if aliasCtrl.GetValue().strip():
+            args.extend(["-A", aliasCtrl.GetValue().strip()])
+        return args
+
+    def startRun(event=None):
+        if currentProcess["proc"] is not None:
+            wx.MessageBox("Builder już działa.", "Proces działa", wx.OK | wx.ICON_WARNING, frame)
+            return
+        try:
+            args = buildCommand()
+            workDir = workDirCtrl.GetValue().strip() or scriptDir
+            if not os.path.isdir(workDir):
+                raise ValueError("Folder roboczy nie istnieje: " + workDir)
+        except Exception as err:
+            wx.MessageBox(str(err), "Brak danych", wx.OK | wx.ICON_ERROR, frame)
+            setStatus(str(err))
+            return
+
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUNBUFFERED"] = "1"
+        ffmpegCandidate = ffmpegCtrl.GetValue().strip()
+        if ffmpegCandidate and os.path.exists(ffmpegCandidate):
+            env["PATH"] = os.path.dirname(ffmpegCandidate) + os.pathsep + env.get("PATH", "")
+        if rhvoiceDllCtrl.GetValue().strip():
+            env["RHVOICE_DLL"] = rhvoiceDllCtrl.GetValue().strip()
+
+        if is_frozen_app():
+            command = [sys.executable] + args
+        else:
+            command = [consolePythonExecutable(), "-u", scriptPath] + args
+        appendLog("")
+        appendLog("Start: " + " ".join(command))
+        appendLog("Folder roboczy: " + workDir)
+        setStatus("Builder działa. Log jest aktualizowany na bieżąco.")
+        runButton.Enable(False)
+        stopButton.Enable(True)
+
+        def worker():
+            try:
+                proc = subprocess.Popen(
+                    command,
+                    cwd=workDir,
+                    env=env,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    encoding="utf-8",
+                    errors="replace",
+                    bufsize=1,
+                    creationflags=(CREATE_NO_WINDOW if os.name == "nt" else 0)
+                )
+                currentProcess["proc"] = proc
+                for line in proc.stdout:
+                    processQueue.put(("log", line.rstrip("\r\n")))
+                code = proc.wait()
+                processQueue.put(("done", code))
+            except Exception as err:
+                processQueue.put(("error", str(err)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def stopRun(event=None):
+        proc = currentProcess["proc"]
+        if proc is None:
+            return
+        appendLog("Zatrzymuję proces...")
+        setStatus("Zatrzymywanie procesu.")
+        try:
+            proc.terminate()
+        except Exception as err:
+            appendLog("Nie udało się zatrzymać procesu: " + str(err))
+
+    def pumpQueue(event=None):
+        try:
+            while True:
+                kind, payload = processQueue.get_nowait()
+                if kind == "log":
+                    appendLog(payload)
+                elif kind == "done":
+                    currentProcess["proc"] = None
+                    runButton.Enable(True)
+                    stopButton.Enable(False)
+                    if payload == 0:
+                        setStatus("Zakończono pomyślnie.")
+                    else:
+                        setStatus("Proces zakończył się błędem. Kod: " + str(payload))
+                    appendLog("Koniec. Kod wyjścia: " + str(payload))
+                elif kind == "error":
+                    currentProcess["proc"] = None
+                    runButton.Enable(True)
+                    stopButton.Enable(False)
+                    setStatus("Błąd uruchamiania.")
+                    appendLog("Błąd uruchamiania: " + payload)
+        except queue.Empty:
+            pass
+
+    def openWorkFolder(event=None):
+        path = workDirCtrl.GetValue().strip() or scriptDir
+        if os.path.isdir(path):
+            os.startfile(path)
+
+    def clearLog(event=None):
+        logCtrl.Clear()
+        setStatus("Log wyczyszczony.")
+
+    def refreshModeState(event=None):
+        configMode = modeConfigRadio.GetValue()
+        for widget in configWidgets:
+            widget.Enable(configMode)
+        for widget in manualWidgets:
+            widget.Enable(not configMode)
+        setStatus("Tryb: " + ("plik konfiguracyjny CSV" if configMode else "ręczny"))
+
+    def onClose(event):
+        proc = currentProcess["proc"]
+        if proc is not None:
+            try:
+                proc.terminate()
+            except Exception:
+                pass
+        frame.Destroy()
+
+    frame.CreateStatusBar()
+
+    modeBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Tryb pracy")
+    modeRow = wx.BoxSizer(wx.HORIZONTAL)
+    modeManualRadio = named(wx.RadioButton(panel, label="Tryb ręczny", style=wx.RB_GROUP), "Tryb ręczny", "Tryb ręczny. Wybierasz wordlistę, głos, port i operacje.")
+    modeConfigRadio = named(wx.RadioButton(panel, label="Plik konfiguracyjny CSV"), "Plik konfiguracyjny CSV", "Tryb pliku konfiguracyjnego CSV. Builder wykona operacje zapisane w CSV.")
+    modeManualRadio.SetValue(True)
+    modeRow.Add(modeManualRadio, 0, wx.RIGHT, 18)
+    modeRow.Add(modeConfigRadio, 0)
+    modeBox.Add(modeRow, 0, wx.ALL, 4)
+    mainSizer.Add(modeBox, 0, wx.EXPAND | wx.ALL, 6)
+
+    configBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Konfiguracja CSV")
+    configCtrl = named(wx.TextCtrl(panel), "Plik konfiguracyjny CSV", "ścieżka do pliku konfiguracyjnego CSV.")
+    configBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz plik konfiguracyjny CSV")
+    configBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(configCtrl, "Wybierz plik konfiguracyjny", "CSV (*.csv)|*.csv|Wszystkie pliki (*.*)|*.*", True))
+    addRow(configBox, "Plik konfiguracyjny:", configCtrl, configBrowse)
+    mainSizer.Add(configBox, 0, wx.EXPAND | wx.ALL, 6)
+
+    manualBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Tryb ręczny")
+    wordlistCtrl = named(wx.TextCtrl(panel), "Wordlist CSV", "Plik CSV z kolumnami promptów.")
+    wordlistBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz wordlist CSV")
+    wordlistBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(wordlistCtrl, "Wybierz wordlist CSV", "CSV (*.csv)|*.csv|Wszystkie pliki (*.*)|*.*"))
+    addRow(manualBox, "Wordlist CSV:", wordlistCtrl, wordlistBrowse)
+
+    voiceCtrl = named(wx.TextCtrl(panel, value="Polish"), "Nazwa głosu", "Nazwa głosu i folderu na pliki audio.")
+    addRow(manualBox, "Nazwa głosu:", voiceCtrl)
+
+    outputCtrl = named(wx.TextCtrl(panel, value=os.path.join(scriptDir, "voice_prompts.vpr")), "Plik wynikowy VPR", "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome.")
+    outputBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz plik wynikowy VPR")
+    outputBrowse.Bind(wx.EVT_BUTTON, lambda event: browseOutput())
+    addRow(manualBox, "Plik wynikowy VPR:", outputCtrl, outputBrowse)
+
+    serialRow = wx.BoxSizer(wx.HORIZONTAL)
+    serialLabel = wx.StaticText(panel, label="Port COM radia:")
+    serialLabel.SetMinSize((210, -1))
+    serialCtrl = named(wx.TextCtrl(panel, size=(120, -1)), "Port COM radia", "Port COM radia OpenGD77, na przykład COM5.")
+    refreshPortsButton = named(wx.Button(panel, label="Odśwież porty"), "Odśwież porty")
+    refreshPortsButton.Bind(wx.EVT_BUTTON, lambda event: refreshPorts())
+    serialRow.Add(serialLabel, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    serialRow.Add(serialCtrl, 0, wx.RIGHT, 8)
+    serialRow.Add(refreshPortsButton, 0)
+    manualBox.Add(serialRow, 0, wx.EXPAND | wx.ALL, 4)
+
+    listCtrl = named(wx.ListBox(panel, size=(-1, 90)), "Lista wykrytych portów", "Lista wykrytych portów. Strzałkami wybierz port.")
+    listCtrl.Bind(wx.EVT_LISTBOX, selectPortFromList)
+    manualBox.Add(listCtrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
+
+    opsRow = wx.BoxSizer(wx.HORIZONTAL)
+    downloadCheck = named(wx.CheckBox(panel, label="Pobierz / syntezuj audio"), "Pobierz lub syntezuj audio")
+    encodeCheck = named(wx.CheckBox(panel, label="Koduj AMBE w radiu"), "Koduj AMBE w radiu")
+    buildCheck = named(wx.CheckBox(panel, label="Zbuduj VPR"), "Zbuduj plik VPR")
+    buildCheck.SetValue(True)
+    for ctrl in (downloadCheck, encodeCheck, buildCheck):
+        opsRow.Add(ctrl, 0, wx.RIGHT, 18)
+    manualBox.Add(opsRow, 0, wx.ALL, 4)
+
+    sourceBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Źródło mowy przy pobieraniu")
+    sourceRow = wx.BoxSizer(wx.HORIZONTAL)
+    speechTtsRadio = named(wx.RadioButton(panel, label="TTSMP3.com", style=wx.RB_GROUP), "Źródło mowy TTSMP3.com", "Źródło mowy: internetowa usługa TTSMP3.")
+    speechNvdaRadio = named(wx.RadioButton(panel, label="RHVoice z dodatku NVDA"), "Źródło mowy RHVoice z dodatku NVDA", "Źródło mowy: lokalny głos RHVoice z dodatku NVDA.")
+    speechTtsRadio.SetValue(True)
+    sourceRow.Add(speechTtsRadio, 0, wx.RIGHT, 18)
+    sourceRow.Add(speechNvdaRadio, 0)
+    sourceBox.Add(sourceRow, 0, wx.ALL, 4)
+
+    nvdaAddonCtrl = named(wx.TextCtrl(panel), "Plik dodatku NVDA", "Plik .nvda-addon zawierający głos RHVoice.")
+    nvdaAddonBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz dodatek NVDA")
+    nvdaAddonBrowse.Bind(wx.EVT_BUTTON, lambda event: browseNvdaAddon())
+    addRow(sourceBox, "Dodatek NVDA:", nvdaAddonCtrl, nvdaAddonBrowse)
+
+    rhvoiceDllCtrl = named(wx.TextCtrl(panel, value=findRhvoiceDllHint()), "RHVoice.dll", "Opcjonalna ścieżka do RHVoice.dll. Puste oznacza automatyczne wykrywanie.")
+    rhvoiceDllBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz RHVoice.dll")
+    rhvoiceDllBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(rhvoiceDllCtrl, "Wybierz RHVoice.dll", "RHVoice.dll|RHVoice.dll|DLL (*.dll)|*.dll|Wszystkie pliki (*.*)|*.*"))
+    addRow(sourceBox, "RHVoice.dll:", rhvoiceDllCtrl, rhvoiceDllBrowse)
+    manualBox.Add(sourceBox, 0, wx.EXPAND | wx.ALL, 4)
+    mainSizer.Add(manualBox, 0, wx.EXPAND | wx.ALL, 6)
+
+    optionsBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Opcje")
+    workDirCtrl = named(wx.TextCtrl(panel, value=scriptDir), "Folder roboczy", "Folder roboczy dla plików tymczasowych i ścieżek względnych.")
+    workDirBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz folder roboczy")
+    workDirBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFolder(workDirCtrl, "Wybierz folder roboczy"))
+    addRow(optionsBox, "Folder roboczy:", workDirCtrl, workDirBrowse)
+
+    ffmpegCtrl = named(wx.TextCtrl(panel, value=findFfmpegHint()), "ffmpeg.exe", "ścieżka do ffmpeg.exe albo puste, jeśli ffmpeg jest w PATH.")
+    ffmpegBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz ffmpeg.exe")
+    ffmpegBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(ffmpegCtrl, "Wybierz ffmpeg.exe", "ffmpeg.exe|ffmpeg.exe|EXE (*.exe)|*.exe|Wszystkie pliki (*.*)|*.*"))
+    addRow(optionsBox, "ffmpeg.exe:", ffmpegCtrl, ffmpegBrowse)
+
+    audioRow = wx.BoxSizer(wx.HORIZONTAL)
+    audioRow.Add(wx.StaticText(panel, label="Głośność dB:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    gainCtrl = named(wx.TextCtrl(panel, value=gain, size=(70, -1)), "Głośność dB", "Zmiana głośności w decybelach.")
+    audioRow.Add(gainCtrl, 0, wx.RIGHT, 20)
+    audioRow.Add(wx.StaticText(panel, label="Tempo:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    tempoCtrl = named(wx.TextCtrl(panel, value=atempo, size=(70, -1)), "Tempo", "Tempo audio od 0.5 do 2.")
+    audioRow.Add(tempoCtrl, 0, wx.RIGHT, 20)
+    audioRow.Add(wx.StaticText(panel, label="Alias tempa:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    aliasCtrl = named(wx.TextCtrl(panel, size=(120, -1)), "Alias tempa", "Opcjonalny alias tempa używany w nazwie pliku.")
+    audioRow.Add(aliasCtrl, 0)
+    optionsBox.Add(audioRow, 0, wx.ALL, 4)
+
+    optionChecksRow = wx.BoxSizer(wx.HORIZONTAL)
+    overwriteCheck = named(wx.CheckBox(panel, label="Nadpisuj istniejące pliki"), "Nadpisuj istniejące pliki")
+    removeSilenceCheck = named(wx.CheckBox(panel, label="Usuń ciszę z początku"), "Usuń ciszę z początku")
+    optionChecksRow.Add(overwriteCheck, 0, wx.RIGHT, 18)
+    optionChecksRow.Add(removeSilenceCheck, 0)
+    optionsBox.Add(optionChecksRow, 0, wx.ALL, 4)
+    mainSizer.Add(optionsBox, 0, wx.EXPAND | wx.ALL, 6)
+
+    buttonsRow = wx.BoxSizer(wx.HORIZONTAL)
+    runButton = named(wx.Button(panel, label="Uruchom Alt+R"), "Uruchom builder")
+    stopButton = named(wx.Button(panel, label="Zatrzymaj Alt+S"), "Zatrzymaj builder")
+    depsButton = named(wx.Button(panel, label="Test zależności"), "Test zależności")
+    openButton = named(wx.Button(panel, label="Otwórz folder"), "Otwórz folder roboczy")
+    clearButton = named(wx.Button(panel, label="Wyczyść log"), "Wyczyść log")
+    closeButton = named(wx.Button(panel, label="Zamknij"), "Zamknij program")
+    stopButton.Enable(False)
+    for ctrl in (runButton, stopButton, depsButton, openButton, clearButton, closeButton):
+        buttonsRow.Add(ctrl, 0, wx.RIGHT, 8)
+    mainSizer.Add(buttonsRow, 0, wx.EXPAND | wx.ALL, 6)
+
+    statusBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Status i log")
+    statusText = wx.StaticText(panel, label="Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić.")
+    statusText.SetName("Status programu")
+    statusBox.Add(statusText, 0, wx.EXPAND | wx.ALL, 4)
+    logCtrl = named(wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 160)), "Log działania buildera", "Log działania buildera.")
+    statusBox.Add(logCtrl, 1, wx.EXPAND | wx.ALL, 4)
+    mainSizer.Add(statusBox, 1, wx.EXPAND | wx.ALL, 6)
+
+    configWidgets = [configCtrl, configBrowse]
+    manualWidgets = [
+        wordlistCtrl, wordlistBrowse, voiceCtrl, outputCtrl, outputBrowse,
+        serialCtrl, refreshPortsButton, listCtrl, downloadCheck, encodeCheck, buildCheck,
+        speechTtsRadio, speechNvdaRadio, nvdaAddonCtrl, nvdaAddonBrowse, rhvoiceDllCtrl, rhvoiceDllBrowse
+    ]
+
+    modeManualRadio.Bind(wx.EVT_RADIOBUTTON, refreshModeState)
+    modeConfigRadio.Bind(wx.EVT_RADIOBUTTON, refreshModeState)
+    runButton.Bind(wx.EVT_BUTTON, startRun)
+    stopButton.Bind(wx.EVT_BUTTON, stopRun)
+    depsButton.Bind(wx.EVT_BUTTON, checkDependencies)
+    openButton.Bind(wx.EVT_BUTTON, openWorkFolder)
+    clearButton.Bind(wx.EVT_BUTTON, clearLog)
+    closeButton.Bind(wx.EVT_BUTTON, lambda event: frame.Close())
+    frame.Bind(wx.EVT_CLOSE, onClose)
+
+    ID_RUN = wx.NewIdRef()
+    ID_STOP = wx.NewIdRef()
+    ID_LOG = wx.NewIdRef()
+    ID_REFRESH = wx.NewIdRef()
+    frame.Bind(wx.EVT_MENU, startRun, id=ID_RUN)
+    frame.Bind(wx.EVT_MENU, stopRun, id=ID_STOP)
+    frame.Bind(wx.EVT_MENU, lambda event: logCtrl.SetFocus(), id=ID_LOG)
+    frame.Bind(wx.EVT_MENU, lambda event: refreshPorts(), id=ID_REFRESH)
+    frame.SetAcceleratorTable(wx.AcceleratorTable([
+        (wx.ACCEL_ALT, ord('R'), ID_RUN),
+        (wx.ACCEL_ALT, ord('S'), ID_STOP),
+        (wx.ACCEL_ALT, ord('L'), ID_LOG),
+        (wx.ACCEL_NORMAL, wx.WXK_F5, ID_REFRESH),
+    ]))
+
+    timer = wx.Timer(frame)
+    frame.Bind(wx.EVT_TIMER, pumpQueue, timer)
+    timer.Start(100)
+
+    refreshPorts()
+    refreshModeState()
+    panel.FitInside()
+    frame.Show()
+    wordlistCtrl.SetFocus()
+    app.MainLoop()
+    return 0
+
+def run_tk_gui():
     try:
         import tkinter as tk
         from tkinter import filedialog, messagebox

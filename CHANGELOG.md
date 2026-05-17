@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 - 2026-05-17
+
+- Zmieniono GUI z Tkinter na wxPython, bo NVDA nie odczytywal poprawnie kontrolek Tk w gotowym EXE.
+- Dodano jawne nazwy dostepnosciowe dla pol edycji, przyciskow, checkboxow, radiobuttonow i listy portow.
+
 ## 0.3.0
 
 - Domyslny build EXE bundluje `RHVoice.dll`, jezeli jest dostepny lokalnie.
