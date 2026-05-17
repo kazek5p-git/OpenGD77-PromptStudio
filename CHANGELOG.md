@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.3 - 2026-05-17
+
+- Dodano dostępny dla NVDA pasek postępu oraz pole `Postęp pracy` ze skrótem Alt+P.
+- GUI pokazuje postęp syntezy RAW, kodowania AMBE i budowania VPR na podstawie logu buildera.
+
 ## 0.3.2 - 2026-05-17
 
 - Puste wpisy w wordliscie, na przyk?ad `PROMPT_SPACE`, sa teraz zapisywane jako krotka cisza zamiast przerywac synteze RHVoice.

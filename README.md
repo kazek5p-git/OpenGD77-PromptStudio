@@ -12,6 +12,7 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.
 - Ma natywny interfejs `wxPython` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, liste portow i log.
+- Pokazuje postep pracy na dostepnym pasku postepu; fokus na postep ustawisz skrotem `Alt+P`.
 
 ## Najszybsze uzycie
 

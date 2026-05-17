@@ -24,7 +24,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.3.2"
+PROGRAM_VERSION = "0.3.3"
 
 
 def is_frozen_app():
@@ -1125,6 +1125,18 @@ def run_wx_gui():
     scriptDir = application_base_dir()
     processQueue = queue.Queue()
     currentProcess = {"proc": None}
+    progressState = {
+        "active": False,
+        "totalPrompts": 0,
+        "operations": [],
+        "operationBase": {},
+        "operationWeight": {},
+        "rawDone": 0,
+        "ambeDone": 0,
+        "buildDone": 0,
+        "percent": 0,
+        "lastAnnounced": -10,
+    }
     portDevices = []
 
     def consolePythonExecutable():
@@ -1185,6 +1197,120 @@ def run_wx_gui():
 
     def appendLog(text):
         logCtrl.AppendText(text + os.linesep)
+
+    def countWordlistPrompts(path):
+        if not path or not os.path.exists(path):
+            return 0
+        try:
+            with open(path, "r", encoding="utf-8") as csvfile:
+                reader = csv.DictReader(filter(lambda row: row and row[0] != '#', csvfile))
+                return sum(1 for _row in reader)
+        except Exception:
+            return 0
+
+    def setProgress(percent, detail="", force=False):
+        percent = max(0, min(100, int(percent)))
+        progressState["percent"] = percent
+        label = "Postęp pracy: " + str(percent) + " procent"
+        if detail:
+            label += ". " + detail
+        try:
+            progressGauge.SetValue(percent)
+            progressGauge.SetName(label)
+            progressGauge.SetToolTip(label)
+            progressGauge.SetHelpText(label)
+            progressTextCtrl.SetValue(label)
+            progressTextCtrl.SetHelpText(label)
+            wx.Accessible.NotifyEvent(wx.ACC_EVENT_OBJECT_VALUECHANGE, progressGauge, wx.OBJID_CLIENT, 0)
+            wx.Accessible.NotifyEvent(wx.ACC_EVENT_OBJECT_VALUECHANGE, progressTextCtrl, wx.OBJID_CLIENT, 0)
+        except Exception:
+            pass
+        if force or percent == 100 or percent >= progressState["lastAnnounced"] + 10:
+            progressState["lastAnnounced"] = percent
+            setStatus(label)
+            try:
+                wx.Accessible.NotifyEvent(wx.ACC_EVENT_OBJECT_VALUECHANGE, statusText, wx.OBJID_CLIENT, 0)
+            except Exception:
+                pass
+
+    def initializeProgress(args):
+        totalPrompts = 0
+        for idx, arg in enumerate(args):
+            if arg == "-f" and idx + 1 < len(args):
+                totalPrompts = countWordlistPrompts(args[idx + 1])
+                break
+
+        selected = []
+        if "-T" in args or "-N" in args:
+            selected.append("audio")
+        if "-e" in args:
+            selected.append("ambe")
+        if "-b" in args:
+            selected.append("build")
+        if not selected:
+            selected.append("run")
+
+        baseWeights = {"audio": 40.0, "ambe": 50.0, "build": 10.0, "run": 100.0}
+        totalWeight = sum(baseWeights.get(op, 1.0) for op in selected) or 1.0
+        base = 0.0
+        operationBase = {}
+        operationWeight = {}
+        for op in selected:
+            weight = (baseWeights.get(op, 1.0) / totalWeight) * 100.0
+            operationBase[op] = base
+            operationWeight[op] = weight
+            base += weight
+
+        progressState.update({
+            "active": True,
+            "totalPrompts": totalPrompts,
+            "operations": selected,
+            "operationBase": operationBase,
+            "operationWeight": operationWeight,
+            "rawDone": 0,
+            "ambeDone": 0,
+            "buildDone": 0,
+            "percent": 0,
+            "lastAnnounced": -10,
+        })
+        setProgress(0, "Builder uruchomiony.", True)
+
+    def updateOperationProgress(operation, done, total, detail):
+        if not progressState.get("active"):
+            return
+        if operation not in progressState["operationWeight"]:
+            return
+        total = max(1, int(total or 0))
+        done = max(0, min(total, int(done)))
+        base = progressState["operationBase"].get(operation, 0.0)
+        weight = progressState["operationWeight"].get(operation, 0.0)
+        percent = int(round(base + (weight * done / total)))
+        setProgress(percent, detail)
+
+    def updateProgressFromLog(line):
+        if not progressState.get("active"):
+            return
+        text = (line or "").strip()
+        total = progressState.get("totalPrompts", 0)
+        if text.startswith("ConvertToRaw "):
+            progressState["rawDone"] += 1
+            done = progressState["rawDone"]
+            if total:
+                updateOperationProgress("audio", done, total, "Synteza i RAW " + str(min(done, total)) + " z " + str(total) + ".")
+            else:
+                setProgress(min(90, progressState["percent"] + 1), "Synteza i konwersja audio.")
+        elif text.startswith("Compress to AMBE "):
+            progressState["ambeDone"] += 1
+            done = progressState["ambeDone"]
+            if total:
+                updateOperationProgress("ambe", done, total, "Kodowanie AMBE " + str(min(done, total)) + " z " + str(total) + ".")
+            else:
+                setProgress(min(90, progressState["percent"] + 1), "Kodowanie AMBE.")
+        elif text.startswith("Building "):
+            updateOperationProgress("build", progressState.get("buildDone", 0), 2, "Budowanie VPR.")
+        elif text.startswith("Built voice pack "):
+            progressState["buildDone"] += 1
+            updateOperationProgress("build", progressState["buildDone"], 2, "Budowanie VPR " + str(min(progressState["buildDone"], 2)) + " z 2.")
 
     def bindStatus(ctrl, text):
         ctrl.SetToolTip(text)
@@ -1406,6 +1532,7 @@ def run_wx_gui():
         appendLog("Start: " + " ".join(command))
         appendLog("Folder roboczy: " + workDir)
         setStatus("Builder działa. Log jest aktualizowany na bieżąco.")
+        initializeProgress(args)
         runButton.Enable(False)
         stopButton.Enable(True)
 
@@ -1439,6 +1566,7 @@ def run_wx_gui():
             return
         appendLog("Zatrzymuję proces...")
         setStatus("Zatrzymywanie procesu.")
+        setProgress(progressState.get("percent", 0), "Zatrzymywanie procesu.", True)
         try:
             proc.terminate()
         except Exception as err:
@@ -1450,20 +1578,23 @@ def run_wx_gui():
                 kind, payload = processQueue.get_nowait()
                 if kind == "log":
                     appendLog(payload)
+                    updateProgressFromLog(payload)
                 elif kind == "done":
                     currentProcess["proc"] = None
                     runButton.Enable(True)
                     stopButton.Enable(False)
+                    progressState["active"] = False
                     if payload == 0:
-                        setStatus("Zakończono pomyślnie.")
+                        setProgress(100, "Zakończono pomyślnie.", True)
                     else:
-                        setStatus("Proces zakończył się błędem. Kod: " + str(payload))
+                        setProgress(progressState.get("percent", 0), "Proces zakończył się błędem. Kod: " + str(payload), True)
                     appendLog("Koniec. Kod wyjścia: " + str(payload))
                 elif kind == "error":
                     currentProcess["proc"] = None
                     runButton.Enable(True)
                     stopButton.Enable(False)
-                    setStatus("Błąd uruchamiania.")
+                    progressState["active"] = False
+                    setProgress(progressState.get("percent", 0), "Błąd uruchamiania.", True)
                     appendLog("Błąd uruchamiania: " + payload)
         except queue.Empty:
             pass
@@ -1619,6 +1750,13 @@ def run_wx_gui():
     statusText = wx.StaticText(panel, label="Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić.")
     statusText.SetName("Status programu")
     statusBox.Add(statusText, 0, wx.EXPAND | wx.ALL, 4)
+    progressRow = wx.BoxSizer(wx.HORIZONTAL)
+    progressGauge = named(wx.Gauge(panel, range=100, style=wx.GA_HORIZONTAL), "Pasek postępu pracy", "Pasek postępu pracy buildera.")
+    progressGauge.SetValue(0)
+    progressTextCtrl = named(wx.TextCtrl(panel, value="Postęp pracy: 0 procent", style=wx.TE_READONLY, size=(280, -1)), "Postęp pracy", "Procent i etap aktualnej pracy buildera.")
+    progressRow.Add(progressGauge, 1, wx.EXPAND | wx.RIGHT, 8)
+    progressRow.Add(progressTextCtrl, 0, wx.EXPAND)
+    statusBox.Add(progressRow, 0, wx.EXPAND | wx.ALL, 4)
     logCtrl = named(wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 160)), "Log działania buildera", "Log działania buildera.")
     statusBox.Add(logCtrl, 1, wx.EXPAND | wx.ALL, 4)
     mainSizer.Add(statusBox, 1, wx.EXPAND | wx.ALL, 6)
@@ -1643,15 +1781,18 @@ def run_wx_gui():
     ID_RUN = wx.NewIdRef()
     ID_STOP = wx.NewIdRef()
     ID_LOG = wx.NewIdRef()
+    ID_PROGRESS = wx.NewIdRef()
     ID_REFRESH = wx.NewIdRef()
     frame.Bind(wx.EVT_MENU, startRun, id=ID_RUN)
     frame.Bind(wx.EVT_MENU, stopRun, id=ID_STOP)
     frame.Bind(wx.EVT_MENU, lambda event: logCtrl.SetFocus(), id=ID_LOG)
+    frame.Bind(wx.EVT_MENU, lambda event: progressTextCtrl.SetFocus(), id=ID_PROGRESS)
     frame.Bind(wx.EVT_MENU, lambda event: refreshPorts(), id=ID_REFRESH)
     frame.SetAcceleratorTable(wx.AcceleratorTable([
         (wx.ACCEL_ALT, ord('R'), ID_RUN),
         (wx.ACCEL_ALT, ord('S'), ID_STOP),
         (wx.ACCEL_ALT, ord('L'), ID_LOG),
+        (wx.ACCEL_ALT, ord('P'), ID_PROGRESS),
         (wx.ACCEL_NORMAL, wx.WXK_F5, ID_REFRESH),
     ]))
 
