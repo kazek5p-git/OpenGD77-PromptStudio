@@ -27,7 +27,7 @@ Gotowy EXE z release ma `RHVoice.dll` wbudowany. Jezeli uzywasz wersji zrodlowej
 
 - uzyj gotowego EXE z release,
 - zainstaluj dodatek NVDA `RHVoice`,
-- albo wpisz pelna sciezke do `RHVoice.dll`,
+- albo ustaw zmienna srodowiskowa `RHVOICE_DLL`,
 - albo skopiuj `RHVoice.dll` obok `OpenGD77PromptStudio.exe`,
 - albo ustaw zmienna srodowiskowa `RHVOICE_DLL`.
 
@@ -35,14 +35,14 @@ Gotowy EXE z release ma `RHVoice.dll` wbudowany. Jezeli uzywasz wersji zrodlowej
 
 1. Zaznacz zrodlo mowy `Dodatek NVDA/RHVoice`.
 2. Wybierz plik `.nvda-addon`.
-3. Jezeli program nie wykryl DLL, wskaz `RHVoice.dll`.
+3. Jezeli program nie wykryl DLL w wersji serwisowej, ustaw `RHVOICE_DLL`, skopiuj DLL obok EXE albo uzyj CLI `-L`. W zwyklym GUI pole DLL nie jest pokazywane.
 4. Zaznacz `Utworz pliki mowy`.
 5. Uruchom `Alt+R`.
 
 ## Tryb CLI
 
 ```powershell
-OpenGD77PromptStudio.exe -f wordlist_polish.csv -n Kazek -N Kazek.nvda-addon -g 0 -t 1.0
+OpenGD77PromptStudio.exe -f wordlist_polish.csv -n Kazek -N Kazek.nvda-addon -g 0 -t 1.0 -l 1.2
 ```
 
 Z recznie wskazanym DLL:
@@ -58,3 +58,7 @@ Wypelnij kolumne `Nvda_addon_file`. Jezeli `Download` ma wartosc `y`, program uz
 ## Wysokosc glosu
 
 Parametr `-p` ustawia wzgledna wysokosc glosu RHVoice. `1.0` to wartosc normalna. Mniejsza wartosc, na przyklad `0.94`, delikatnie obniza glos.
+
+## Tempo liter i cyfr
+
+Parametr `-l` albo `--letter-tempo` ustawia tempo tylko dla pojedynczych liter, cyfr, spacji i kropki. Bez tego parametru te prompty uzywaja zwyklego `-t`.

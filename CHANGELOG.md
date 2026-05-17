@@ -1,4 +1,35 @@
-# Changelog
+﻿# Changelog
+
+## 0.4.3 - 2026-05-17
+
+- Zastapiono natywny pasek `wx.Notebook` dostepnym paskiem zakladek z radiobuttonow. NVDA widzi teraz kazda zakladke jako zwykla kontrolke z nazwa.
+- Po starcie fokus trafia na radiobutton `Projekt` w pasku zakladek.
+- Usunieto widoczne pole wyboru `ffmpeg.exe` z GUI. Standardowy EXE korzysta z wbudowanego ffmpeg automatycznie, a tryb serwisowy moze nadal uzyc `FFMPEG_EXE` albo pliku obok programu.
+- Usunieto widoczne pole `RHVoice.dll` z GUI, zeby NVDA nie czytal tymczasowej sciezki `_MEI`; DLL jest wykrywana automatycznie.
+
+## 0.4.2 - 2026-05-17
+
+- Po starcie GUI fokus czytnika ekranu trafia na pasek zakladek z wybrana pierwsza zakladka `Projekt`, zamiast do pola wordlisty.
+## 0.4.1 - 2026-05-17
+
+- Poprawiono dostepnosc zakladek: dodano liste wyboru aktywnej zakladki, przyciski poprzednia/nastepna zakladka oraz skroty Ctrl+Tab, Ctrl+Shift+Tab, Ctrl+PageUp/Ctrl+PageDown i Alt+1..Alt+5.
+- Domyslny folder roboczy jest teraz w `%APPDATA%\OpenGD77PromptStudio\work`, a plik wynikowy w dokumentach aktualnego uzytkownika.
+- Pole `ffmpeg.exe` jest domyslnie puste, bo standardowy EXE uzywa wbudowanego ffmpeg automatycznie i nie pokazuje lokalnej sciezki z komputera budujacego.
+- Usunieto runtime'owa podpowiedz do developerskiego folderu `fmdx-webserver-src`.
+
+## 0.4.0 - 2026-05-17
+
+- GUI wxPython zostalo podzielone na zakladki: Projekt, Mowa, Opcje, Praca oraz Aktualizacja i pomoc.
+- Dodano profile ustawien zapisywane jako JSON w `%APPDATA%\OpenGD77PromptStudio\profiles`.
+- Dodano bezposredni aktualizator oparty o GitHub Releases repozytorium `kazek5p-git/OpenGD77-PromptStudio`.
+- Ostatnia zakladka zawiera aktualizacje, linki do GitHuba, pomoc i informacje o autorze `kazek5p`.
+
+## 0.3.6 - 2026-05-17
+
+- Dodano osobne tempo dla pojedynczych liter, cyfr, spacji i kropki.
+- GUI ma nowe pole `Tempo liter/cyfr`; CLI ma parametr `-l` oraz `--letter-tempo`.
+- Tryb CSV obsluguje opcjonalna kolumne `Compact_audio_tempo` albo zgodnosciowo `Letter_audio_tempo`.
+- Folder roboczy RAW/AMBE zawiera teraz dopisek `_letters_<tempo>`, jezeli tempo liter/cyfr rozni sie od zwyklego tempa.
 
 ## 0.3.5 - 2026-05-17
 

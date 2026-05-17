@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 
 import urllib.request
 import json
@@ -24,7 +24,133 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.3.5"
+PROGRAM_VERSION = "0.4.3"
+
+
+GITHUB_OWNER = "kazek5p-git"
+GITHUB_REPO = "OpenGD77-PromptStudio"
+GITHUB_REPO_URL = "https://github.com/" + GITHUB_OWNER + "/" + GITHUB_REPO
+GITHUB_RELEASES_URL = GITHUB_REPO_URL + "/releases"
+GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/" + GITHUB_OWNER + "/" + GITHUB_REPO + "/releases/latest"
+GITHUB_EXE_ASSET = "OpenGD77PromptStudio.exe"
+APP_DATA_NAME = "OpenGD77PromptStudio"
+
+
+def appUserDataDir():
+    base = os.environ.get("APPDATA") or os.path.expanduser("~")
+    return os.path.join(base, APP_DATA_NAME)
+
+
+def userDocumentsDir():
+    home = os.path.expanduser("~")
+    documents = os.path.join(home, "Documents")
+    if os.path.isdir(documents):
+        return documents
+    return home
+
+
+def defaultWorkDir():
+    return os.path.join(appUserDataDir(), "work")
+
+
+def defaultOutputDir():
+    return os.path.join(userDocumentsDir(), APP_DATA_NAME)
+
+
+def defaultOutputPath():
+    return os.path.join(defaultOutputDir(), "voice_prompts.vpr")
+
+
+def profilesDir():
+    return os.path.join(appUserDataDir(), "profiles")
+
+
+def updatesDir():
+    return os.path.join(appUserDataDir(), "updates")
+
+
+def ensureDir(path):
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def safeProfileStem(name):
+    allowed = set("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_. -" + "\u0104\u0106\u0118\u0141\u0143\u00d3\u015a\u0179\u017b\u0105\u0107\u0119\u0142\u0144\u00f3\u015b\u017a\u017c")
+    stem = "".join((ch if ch in allowed else "_") for ch in (name or "").strip()).strip(" ._")
+    while "__" in stem:
+        stem = stem.replace("__", "_")
+    return stem or "domyslny"
+
+
+def versionTuple(text):
+    text = str(text or "").strip()
+    if text.lower().startswith("v"):
+        text = text[1:]
+    parts = []
+    current = ""
+    for ch in text:
+        if ch.isdigit():
+            current += ch
+        elif current:
+            parts.append(int(current))
+            current = ""
+    if current:
+        parts.append(int(current))
+    while len(parts) < 3:
+        parts.append(0)
+    return tuple(parts[:4])
+
+
+def isNewerVersion(candidate, current):
+    return versionTuple(candidate) > versionTuple(current)
+
+
+def githubJson(url):
+    req = urllib.request.Request(url, headers={"User-Agent": APP_DATA_NAME + "/" + PROGRAM_VERSION})
+    with urllib.request.urlopen(req, timeout=25) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def latestGithubRelease():
+    release = githubJson(GITHUB_LATEST_RELEASE_API)
+    asset = None
+    for item in release.get("assets", []):
+        if item.get("name") == GITHUB_EXE_ASSET:
+            asset = item
+            break
+    return release, asset
+
+
+def downloadUrlToFile(url, path):
+    ensureDir(os.path.dirname(path))
+    req = urllib.request.Request(url, headers={"User-Agent": APP_DATA_NAME + "/" + PROGRAM_VERSION})
+    with urllib.request.urlopen(req, timeout=120) as response, open(path, "wb") as out:
+        shutil.copyfileobj(response, out)
+    return path
+
+
+def launchSelfUpdate(downloadedExe):
+    if not is_frozen_app():
+        return False
+    ensureDir(updatesDir())
+    scriptPath = os.path.join(updatesDir(), "install_update.cmd")
+    target = os.path.abspath(sys.executable)
+    source = os.path.abspath(downloadedExe)
+    lines = [
+        "@echo off",
+        "set PID=" + str(os.getpid()),
+        "set \"SOURCE=" + source + "\"",
+        "set \"TARGET=" + target + "\"",
+        ":waitloop",
+        "tasklist /FI \"PID eq %PID%\" | find \"%PID%\" >NUL",
+        "if not errorlevel 1 (timeout /T 1 /NOBREAK >NUL & goto waitloop)",
+        "copy /Y \"%SOURCE%\" \"%TARGET%\"",
+        "start \"\" \"%TARGET%\"",
+    ]
+    with open(scriptPath, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+    subprocess.Popen(["cmd.exe", "/c", scriptPath], creationflags=(DETACHED_PROCESS | CREATE_NO_WINDOW if os.name == "nt" else 0))
+    return True
 
 
 def is_frozen_app():
@@ -49,11 +175,76 @@ DETACHED_PROCESS = 0x00000008
 overwrite = False
 gain = '0'
 atempo = '1.5'
+compactAtempo = ""
 atempoAlias = ""
 removeSilenceAtStart = False
 nvdaAddonPath = ""
 rhvoiceDllPath = ""
 rhvoiceRelativePitch = "1.0"
+
+
+COMPACT_PROMPT_NAMES = set(
+    ["PROMPT_SPACE", "PROMPT_POINT", "trRPT_0"]
+    + ["PROMPT_" + str(i) for i in range(1, 10)]
+    + ["PROMPT_" + chr(c) for c in range(ord("A"), ord("Z") + 1)]
+    + ["PROMPT_Z2"]
+)
+
+
+def parseAudioTempo(value, label="Audio tempo"):
+    text = str(value).strip().replace(",", ".")
+    try:
+        tempo = float(text)
+    except ValueError:
+        raise ValueError(label + " must be a number, for example 1.5 or 1.2.")
+    if tempo < 0.5 or tempo > 2.0:
+        raise ValueError(label + " must be between 0.5 and 2.0.")
+    return text
+
+
+def sameAudioTempo(left, right):
+    try:
+        return abs(float(str(left).replace(",", ".")) - float(str(right).replace(",", "."))) < 0.000001
+    except Exception:
+        return str(left).strip() == str(right).strip()
+
+
+def safeTempoPart(value):
+    return re.sub(r"[^0-9A-Za-z_.-]+", "_", str(value).strip().replace(",", ".")) or "default"
+
+
+def effectiveCompactAtempo():
+    value = compactAtempo.strip()
+    if not value or sameAudioTempo(value, atempo):
+        return ""
+    return value
+
+
+def tempoForPrompt(promptName):
+    compact = compactAtempo.strip()
+    if compact and promptName in COMPACT_PROMPT_NAMES:
+        return compact
+    return atempo
+
+
+def tempoFolderName():
+    name = "tempo_" + safeTempoPart(atempo)
+    compact = effectiveCompactAtempo()
+    if compact:
+        name += "_letters_" + safeTempoPart(compact)
+    return name
+
+
+def voiceTempoDir(voiceName):
+    return voiceName + os.path.sep + tempoFolderName()
+
+
+def outputTempoLabel():
+    label = atempoAlias if len(atempoAlias) > 0 else safeTempoPart(atempo)
+    compact = effectiveCompactAtempo()
+    if compact:
+        label += "_letters_" + safeTempoPart(compact)
+    return label
 
 
 def parseRhvoiceRelativePitch(value):
@@ -381,7 +572,6 @@ def findFfmpegExecutable(explicitPath=""):
     candidates.extend([
         os.path.join(bundled_resource_dir(), exeName),
         os.path.join(application_base_dir(), exeName),
-        os.path.join(os.path.expanduser("~"), "Documents", "fmdx-webserver-src", "node_modules", "ffmpeg-static", "ffmpeg.exe"),
     ])
     found = shutil.which(exeName)
     if found:
@@ -396,9 +586,11 @@ def ffmpeg_path_for_subprocess():
     return findFfmpegExecutable() or ("ffmpeg.exe" if os.name == "nt" else "ffmpeg")
 
 
-def convertToRaw(inFile,outFile):
-    print("ConvertToRaw "+ inFile + " -> " + outFile + " gain="+gain + " tempo="+atempo)
-    callArgs = [ffmpeg_path_for_subprocess(),'-y','-i', inFile,'-filter:a','atempo=+'+atempo+',volume='+gain+'dB','-ar','8000','-f','s16le',outFile]
+def convertToRaw(inFile, outFile, promptName=""):
+    promptTempo = tempoForPrompt(promptName)
+    promptInfo = (" prompt=" + promptName) if promptName else ""
+    print("ConvertToRaw " + inFile + " -> " + outFile + " gain=" + gain + " tempo=" + promptTempo + promptInfo)
+    callArgs = [ffmpeg_path_for_subprocess(), '-y', '-i', inFile, '-filter:a', 'atempo=' + promptTempo + ',volume=' + gain + 'dB', '-ar', '8000', '-f', 's16le', outFile]
     if os.name == 'nt':
         subprocess.call(callArgs, creationflags=CREATE_NO_WINDOW)#'-af','silenceremove=1:0:-50dB'
     elif os.name == 'posix':
@@ -712,8 +904,8 @@ def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
                 promptName = row['PromptName'].strip()
                 promptText = row['PromptSpeechPrefix'].strip() + row['PromptText'] + row['PromptSpeechPostfix'].strip()
                 wavFileName = voiceName + os.path.sep + promptName + ".wav"
-                rawFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".raw"
-                ambeFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".amb"
+                rawFileName = voiceTempoDir(voiceName) + os.path.sep + promptName + ".raw"
+                ambeFileName = voiceTempoDir(voiceName) + os.path.sep + promptName + ".amb"
                 if (not os.path.exists(wavFileName)) or overwrite == True:
                     if not promptText.strip():
                         writeSilentPromptWav(wavFileName)
@@ -722,7 +914,7 @@ def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
                         usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile, pitch)
                         print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile + " pitch=" + str(pitch))
                 if (not os.path.exists(rawFileName)) or overwrite == True:
-                    convertToRaw(wavFileName, rawFileName)
+                    convertToRaw(wavFileName, rawFileName, promptName)
                     if os.path.exists(ambeFileName):
                         os.remove(ambeFileName)
     finally:
@@ -742,8 +934,8 @@ def downloadPollyPro(voiceName,fileStub,promptText,speechSpeed):
     data = data.encode('ascii')
 
     mp3FileName = voiceName + os.path.sep + fileStub + ".mp3"
-    rawFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + fileStub + ".raw"
-    ambeFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + fileStub + ".amb"
+    rawFileName = voiceTempoDir(voiceName) + os.path.sep + fileStub + ".raw"
+    ambeFileName = voiceTempoDir(voiceName) + os.path.sep + fileStub + ".amb"
 
     if (not os.path.exists(mp3FileName) or overwrite==True):
         with urllib.request.urlopen("https://voicepolly.pro/speech-converter.php", data) as f:
@@ -762,7 +954,7 @@ def downloadPollyPro(voiceName,fileStub,promptText,speechSpeed):
 #        print("Download skipping " + file_name)
 
     if (hasDownloaded == True or not os.path.exists(rawFileName) or overwrite == True):
-        convertToRaw(mp3FileName,rawFileName)
+        convertToRaw(mp3FileName, rawFileName, fileStub)
         if (os.path.exists(ambeFileName)):
             os.remove(ambeFileName)# ambe file is now out of date, so delete it
 
@@ -779,8 +971,8 @@ def downloadTTSMP3(voiceName,fileStub,promptText):
     data = myStr.encode('ascii')
 
     mp3FileName = voiceName + os.path.sep + fileStub + ".mp3"
-    rawFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + fileStub + ".raw"
-    ambeFileName = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + fileStub + ".amb"
+    rawFileName = voiceTempoDir(voiceName) + os.path.sep + fileStub + ".raw"
+    ambeFileName = voiceTempoDir(voiceName) + os.path.sep + fileStub + ".amb"
 
     hasDownloaded = False
 
@@ -807,7 +999,7 @@ def downloadTTSMP3(voiceName,fileStub,promptText):
                 return False
 
     if (hasDownloaded == True or not os.path.exists(rawFileName) or overwrite == True):
-        convertToRaw(mp3FileName,rawFileName)
+        convertToRaw(mp3FileName, rawFileName, fileStub)
         if (os.path.exists(ambeFileName)):
             os.remove(ambeFileName)# ambe file is now out of date, so delete it
 
@@ -867,7 +1059,7 @@ def encodeWordList(ser,filename,voiceName,forceReEncode):
             reader = csv.DictReader(filter(lambda row: row[0]!='#', csvfile))
             for row in reader:
                 promptName = row['PromptName'].strip()
-                fileStub = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName
+                fileStub = voiceTempoDir(voiceName) + os.path.sep + promptName
 
 
                 encodeFile(ser,fileStub)
@@ -887,7 +1079,7 @@ def buildDataPack(filename,voiceName,outputFileName):
             for row in reader:
                 promptName = row['PromptName'].strip()
                 if (((flavor == "monochrome") and (promptName.startswith("theme_"))) == False):
-                    infile = voiceName + os.path.sep + "tempo_" + atempo + os.path.sep + promptName + ".amb"
+                    infile = voiceTempoDir(voiceName) + os.path.sep + promptName + ".amb"
                     with open(infile,'rb') as f:
                         promptsDict[promptName] = bytearray(f.read())
                         f.close()
@@ -953,6 +1145,8 @@ def usage(message=""):
     print("    -o                    : Overwrite existing files")
     print("    -g=gain               : Audio level gain adjust in db.  Default is 0, but can be negative or positive numbers")
     print("    -t=tempo              : Audio tempo (from 0.5 to 2).  Default is {}".format(atempo))
+    print("    -l=tempo              : Letter/digit audio tempo. Empty means use normal tempo")
+    print("    --letter-tempo=tempo  : Same as -l")
     print("    -A=alias              : use alias instead of speed number into the resulting filename")
     print("    -r                    : Remove silence from beginning of audio files")
     print("")
@@ -965,15 +1159,16 @@ def ensureVoiceFolders(voiceName):
         print("Creating folder " + voiceName + " for voice files")
         os.mkdir(voiceName);
 
-    tempoDir = voiceName + os.path.sep + "tempo_" + atempo
+    tempoDir = voiceTempoDir(voiceName)
     if not os.path.exists(tempoDir):
         print("Creating folder " + tempoDir + " for temporary files")
-        os.mkdir(tempoDir);
+        os.makedirs(tempoDir, exist_ok=True);
 
 def main(argv=None):
     global overwrite
     global gain
     global atempo
+    global compactAtempo
     global atempoAlias
     global removeSilenceAtStart, forceTTSMP3Usage
     global nvdaAddonPath, rhvoiceDllPath
@@ -1001,7 +1196,7 @@ def main(argv=None):
     # Command line argument parsing
     try:
         ##opts, args = getopt.getopt(sys.argv[1:], "hof:n:seb:d:c:g:Tt:")
-        opts, args = getopt.getopt(argv, "hon:f:eb:d:c:g:Tt:A:rp:N:L:", ["help"])
+        opts, args = getopt.getopt(argv, "hon:f:eb:d:c:g:Tt:A:rp:N:L:l:", ["help", "letter-tempo="])
     except getopt.GetoptError as err:
         print(str(err))
         usage("")
@@ -1032,7 +1227,9 @@ def main(argv=None):
         elif opt in ("-L"):
             rhvoiceDllPath = arg
         elif opt in ('-t'):
-            atempo = arg
+            atempo = parseAudioTempo(arg, "Audio tempo")
+        elif opt in ('-l', '--letter-tempo'):
+            compactAtempo = parseAudioTempo(arg, "Letter/digit tempo")
         elif opt in ('-A'):
             atempoAlias = arg
         elif opt in ('-p'):
@@ -1072,18 +1269,21 @@ def main(argv=None):
                 gain = row['Volume_change_db'].strip()
                 rs = row['Remove_silence'].strip()
                 cfg_atempo = row['Audio_tempo'].strip()
+                cfg_compact_atempo = (row.get('Compact_audio_tempo') or row.get('Letter_audio_tempo') or '').strip()
                 cfg_nvda_addon = row.get('Nvda_addon_file', '').strip()
                 cfg_rhvoice_dll = row.get('RHVoice_dll', '').strip()
                 cfg_rhvoice_pitch = row.get('RHVoice_pitch', '').strip()
 
                 ## If Audio_tempo is not set, use the default value
                 if cfg_atempo != '':
-                    atempo = cfg_atempo
+                    atempo = parseAudioTempo(cfg_atempo, "Audio tempo")
+                if cfg_compact_atempo != '':
+                    compactAtempo = parseAudioTempo(cfg_compact_atempo, "Letter/digit tempo")
                 if cfg_rhvoice_pitch != '':
                     rhvoiceRelativePitch = str(parseRhvoiceRelativePitch(cfg_rhvoice_pitch))
 
                 ## Add audio tempo value to the filename
-                voicePackName = voicePackName.replace('.vpr', '-' + (atempoAlias if len(atempoAlias) > 0 else atempo) + '.vpr');
+                voicePackName = voicePackName.replace('.vpr', '-' + outputTempoLabel() + '.vpr');
 
                 print("Processing " + wordlistFilename+" "+voiceName+" "+voicePackName)
 
@@ -1199,7 +1399,7 @@ def run_wx_gui():
         return exe
 
     def findFfmpegHint():
-        return findFfmpegExecutable()
+        return ""
 
 
     def findRhvoiceDllHint():
@@ -1374,7 +1574,7 @@ def run_wx_gui():
 
     def addRow(parentSizer, labelText, ctrl, browseButton=None):
         row = wx.BoxSizer(wx.HORIZONTAL)
-        label = wx.StaticText(panel, label=labelText)
+        label = wx.StaticText(ctrl.GetParent(), label=labelText)
         label.SetMinSize((210, -1))
         row.Add(label, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
         row.Add(ctrl, 1, wx.EXPAND | wx.RIGHT, 8)
@@ -1462,13 +1662,11 @@ def run_wx_gui():
         except Exception as err:
             messages.append("pyserial: BŁĄD - " + str(err))
 
-        ffmpegCandidate = ffmpegCtrl.GetValue().strip()
+        ffmpegCandidate = findFfmpegExecutable()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
-            messages.append("ffmpeg: OK (" + ffmpegCandidate + ")")
-        elif ffmpegAvailable():
-            messages.append("ffmpeg: OK (" + findFfmpegExecutable() + ")")
+            messages.append("ffmpeg: OK, wykryty automatycznie (" + ffmpegCandidate + ")")
         else:
-            messages.append("ffmpeg: BRAK. Wybierz ffmpeg.exe albo dodaj ffmpeg do PATH.")
+            messages.append("ffmpeg: BRAK. Standardowy EXE ma ffmpeg wbudowany. W wersji serwisowej ustaw FFMPEG_EXE albo poloz ffmpeg.exe obok programu.")
 
         addonCandidate = nvdaAddonCtrl.GetValue().strip()
         if addonCandidate:
@@ -1480,10 +1678,10 @@ def run_wx_gui():
         elif speechNvdaRadio.GetValue():
             messages.append("NVDA/RHVoice add-on: missing .nvda-addon path.")
 
-        if speechNvdaRadio.GetValue() or addonCandidate or rhvoiceDllCtrl.GetValue().strip():
+        if speechNvdaRadio.GetValue() or addonCandidate:
             try:
-                dll = findRhvoiceDll(rhvoiceDllCtrl.GetValue().strip())
-                messages.append("RHVoice.dll: OK (" + dll + ")")
+                dll = findRhvoiceDll("")
+                messages.append("RHVoice.dll: OK, wykryty automatycznie (" + dll + ")")
             except Exception as err:
                 messages.append("RHVoice.dll: ERROR - " + str(err))
         else:
@@ -1519,8 +1717,6 @@ def run_wx_gui():
                     if not addonPath:
                         raise ValueError("Wybierz plik .nvda-addon z głosem RHVoice.")
                     args.extend(["-N", addonPath])
-                    if rhvoiceDllCtrl.GetValue().strip():
-                        args.extend(["-L", rhvoiceDllCtrl.GetValue().strip()])
                 else:
                     args.append("-T")
             if encodeCheck.GetValue():
@@ -1529,6 +1725,9 @@ def run_wx_gui():
                 outputPath = outputCtrl.GetValue().strip()
                 if not outputPath:
                     raise ValueError("Wybierz nazwę pliku wyjściowego VPR.")
+                outputDir = os.path.dirname(os.path.abspath(outputPath))
+                if outputDir:
+                    ensureDir(outputDir)
                 args.extend(["-b", outputPath])
 
         if overwriteCheck.GetValue():
@@ -1539,6 +1738,8 @@ def run_wx_gui():
             args.extend(["-g", gainCtrl.GetValue().strip()])
         if tempoCtrl.GetValue().strip():
             args.extend(["-t", tempoCtrl.GetValue().strip()])
+        if compactTempoCtrl.GetValue().strip():
+            args.extend(["-l", compactTempoCtrl.GetValue().strip()])
         if aliasCtrl.GetValue().strip():
             args.extend(["-A", aliasCtrl.GetValue().strip()])
         if pitchCtrl.GetValue().strip():
@@ -1551,9 +1752,8 @@ def run_wx_gui():
             return
         try:
             args = buildCommand()
-            workDir = workDirCtrl.GetValue().strip() or scriptDir
-            if not os.path.isdir(workDir):
-                raise ValueError("Folder roboczy nie istnieje: " + workDir)
+            workDir = workDirCtrl.GetValue().strip() or defaultWorkDir()
+            ensureDir(workDir)
         except Exception as err:
             wx.MessageBox(str(err), "Brak danych", wx.OK | wx.ICON_ERROR, frame)
             setStatus(str(err))
@@ -1562,12 +1762,10 @@ def run_wx_gui():
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
-        ffmpegCandidate = ffmpegCtrl.GetValue().strip() or findFfmpegExecutable()
+        ffmpegCandidate = findFfmpegExecutable()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             env["PATH"] = os.path.dirname(ffmpegCandidate) + os.pathsep + env.get("PATH", "")
             env["FFMPEG_EXE"] = ffmpegCandidate
-        if rhvoiceDllCtrl.GetValue().strip():
-            env["RHVOICE_DLL"] = rhvoiceDllCtrl.GetValue().strip()
 
         if is_frozen_app():
             command = [sys.executable] + args
@@ -1645,13 +1843,207 @@ def run_wx_gui():
             pass
 
     def openWorkFolder(event=None):
-        path = workDirCtrl.GetValue().strip() or scriptDir
+        path = workDirCtrl.GetValue().strip() or defaultWorkDir()
         if os.path.isdir(path):
             os.startfile(path)
 
     def clearLog(event=None):
         logCtrl.Clear()
         setStatus("Log wyczyszczony.")
+
+    def profilePath(name):
+        return os.path.join(profilesDir(), safeProfileStem(name) + ".json")
+
+    def profileNames():
+        ensureDir(profilesDir())
+        names = []
+        for filename in os.listdir(profilesDir()):
+            if filename.lower().endswith(".json"):
+                names.append(os.path.splitext(filename)[0])
+        return sorted(names, key=lambda item: item.lower())
+
+    def refreshProfileList(selectName=""):
+        names = profileNames()
+        profileCombo.SetItems(names)
+        if selectName:
+            profileCombo.SetValue(selectName)
+        elif names and not profileCombo.GetValue().strip():
+            profileCombo.SetValue(names[0])
+
+    def collectSettingsProfile():
+        return {
+            "schema": 1,
+            "program_version": PROGRAM_VERSION,
+            "mode": "config" if modeConfigRadio.GetValue() else "manual",
+            "config_csv": configCtrl.GetValue(),
+            "wordlist_csv": wordlistCtrl.GetValue(),
+            "voice_name": voiceCtrl.GetValue(),
+            "output_vpr": outputCtrl.GetValue(),
+            "serial_port": serialCtrl.GetValue(),
+            "download": downloadCheck.GetValue(),
+            "encode": encodeCheck.GetValue(),
+            "build": buildCheck.GetValue(),
+            "speech_source": "nvda" if speechNvdaRadio.GetValue() else "ttsmp3",
+            "nvda_addon": nvdaAddonCtrl.GetValue(),
+            "work_dir": workDirCtrl.GetValue(),
+            "gain": gainCtrl.GetValue(),
+            "tempo": tempoCtrl.GetValue(),
+            "compact_tempo": compactTempoCtrl.GetValue(),
+            "tempo_alias": aliasCtrl.GetValue(),
+            "rhvoice_pitch": pitchCtrl.GetValue(),
+            "overwrite": overwriteCheck.GetValue(),
+            "remove_silence": removeSilenceCheck.GetValue(),
+        }
+
+    def applySettingsProfile(data):
+        modeConfigRadio.SetValue(data.get("mode") == "config")
+        modeManualRadio.SetValue(data.get("mode") != "config")
+        configCtrl.SetValue(data.get("config_csv", ""))
+        wordlistCtrl.SetValue(data.get("wordlist_csv", ""))
+        voiceCtrl.SetValue(data.get("voice_name", "Polish"))
+        outputCtrl.SetValue(data.get("output_vpr") or defaultOutputPath())
+        serialCtrl.SetValue(data.get("serial_port", ""))
+        downloadCheck.SetValue(bool(data.get("download", False)))
+        encodeCheck.SetValue(bool(data.get("encode", False)))
+        buildCheck.SetValue(bool(data.get("build", True)))
+        speechNvdaRadio.SetValue(data.get("speech_source") == "nvda")
+        speechTtsRadio.SetValue(data.get("speech_source") != "nvda")
+        nvdaAddonCtrl.SetValue(data.get("nvda_addon", ""))
+        workDirCtrl.SetValue(data.get("work_dir") or defaultWorkDir())
+        gainCtrl.SetValue(data.get("gain", gain))
+        tempoCtrl.SetValue(data.get("tempo", atempo))
+        compactTempoCtrl.SetValue(data.get("compact_tempo", compactAtempo))
+        aliasCtrl.SetValue(data.get("tempo_alias", ""))
+        pitchCtrl.SetValue(data.get("rhvoice_pitch", rhvoiceRelativePitch))
+        overwriteCheck.SetValue(bool(data.get("overwrite", False)))
+        removeSilenceCheck.SetValue(bool(data.get("remove_silence", False)))
+        refreshModeState()
+
+    def saveProfile(event=None):
+        name = safeProfileStem(profileCombo.GetValue())
+        profileCombo.SetValue(name)
+        ensureDir(profilesDir())
+        path = profilePath(name)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(collectSettingsProfile(), f, ensure_ascii=False, indent=2)
+        refreshProfileList(name)
+        setStatus("Zapisano profil ustawien: " + name)
+
+    def loadProfile(event=None):
+        name = profileCombo.GetValue().strip()
+        if not name:
+            wx.MessageBox("Wybierz profil ustawien.", "Profile", wx.OK | wx.ICON_INFORMATION, frame)
+            return
+        path = profilePath(name)
+        if not os.path.exists(path):
+            wx.MessageBox("Nie znaleziono profilu: " + name, "Profile", wx.OK | wx.ICON_ERROR, frame)
+            return
+        with open(path, "r", encoding="utf-8") as f:
+            applySettingsProfile(json.load(f))
+        setStatus("Wczytano profil ustawien: " + name)
+
+    def deleteProfile(event=None):
+        name = profileCombo.GetValue().strip()
+        if not name:
+            return
+        path = profilePath(name)
+        if os.path.exists(path):
+            os.remove(path)
+        profileCombo.SetValue("")
+        refreshProfileList()
+        setStatus("Usunieto profil ustawien: " + name)
+
+    def openProfilesFolder(event=None):
+        ensureDir(profilesDir())
+        os.startfile(profilesDir())
+
+    updateState = {"release": None, "asset": None, "downloaded": ""}
+
+    def setUpdateStatus(text):
+        updateStatusCtrl.SetValue(text)
+        setStatus(text.splitlines()[0] if text else "Aktualizacja")
+
+    def runGuiTask(label, worker):
+        def wrapped():
+            try:
+                wx.CallAfter(setUpdateStatus, label + "...")
+                result = worker()
+                if result:
+                    wx.CallAfter(setUpdateStatus, result)
+            except Exception as err:
+                wx.CallAfter(setUpdateStatus, "Blad: " + str(err))
+            finally:
+                wx.CallAfter(checkUpdateButton.Enable, True)
+                wx.CallAfter(installUpdateButton.Enable, True)
+        checkUpdateButton.Enable(False)
+        installUpdateButton.Enable(False)
+        threading.Thread(target=wrapped, daemon=True).start()
+
+    def checkForUpdates(event=None):
+        def worker():
+            release, asset = latestGithubRelease()
+            updateState["release"] = release
+            updateState["asset"] = asset
+            tag = release.get("tag_name", "")
+            name = release.get("name", tag)
+            if not asset:
+                return "Najnowszy release: " + tag + "\nBrak pliku " + GITHUB_EXE_ASSET + " w assets release."
+            status = "Najnowszy release: " + tag + "\nNazwa: " + name + "\nAktualna wersja programu: " + PROGRAM_VERSION
+            if isNewerVersion(tag, PROGRAM_VERSION):
+                status += "\nDostepna jest nowsza wersja. Uzyj przycisku Pobierz i zainstaluj."
+            else:
+                status += "\nProgram nie wykryl nowszej wersji na GitHub."
+            status += "\nZrodlo: " + GITHUB_RELEASES_URL
+            return status
+        runGuiTask("Sprawdzanie GitHub Releases", worker)
+
+    def installUpdate(event=None):
+        if currentProcess["proc"] is not None:
+            wx.MessageBox("Najpierw zatrzymaj aktualnie dzialajacy builder.", "Aktualizacja", wx.OK | wx.ICON_WARNING, frame)
+            return
+        def worker():
+            release = updateState.get("release")
+            asset = updateState.get("asset")
+            if not release or not asset:
+                release, asset = latestGithubRelease()
+                updateState["release"] = release
+                updateState["asset"] = asset
+            if not asset:
+                return "Nie znaleziono pliku " + GITHUB_EXE_ASSET + " w najnowszym release."
+            tag = release.get("tag_name", "latest")
+            if not isNewerVersion(tag, PROGRAM_VERSION):
+                return "GitHub nie ma nowszej wersji niz uruchomiona: " + PROGRAM_VERSION + ". Najnowszy release: " + tag
+            url = asset.get("browser_download_url")
+            if not url:
+                return "Release nie ma adresu pobierania EXE."
+            outName = "OpenGD77PromptStudio_" + safeProfileStem(tag) + ".exe"
+            outPath = os.path.join(ensureDir(updatesDir()), outName)
+            downloadUrlToFile(url, outPath)
+            updateState["downloaded"] = outPath
+            if is_frozen_app():
+                wx.CallAfter(wx.MessageBox, "Aktualizacja zostala pobrana. Program zamknie sie, podmieni EXE i uruchomi ponownie.", "Aktualizacja", wx.OK | wx.ICON_INFORMATION, frame)
+                wx.CallAfter(launchSelfUpdate, outPath)
+                wx.CallAfter(frame.Close)
+                return "Pobrano aktualizacje: " + outPath + "\nUruchamiam podmiane pliku EXE."
+            return "Pobrano aktualizacje: " + outPath + "\nProgram dziala ze zrodel, wiec nie podmieniam uruchomionego Pythona. Uruchom pobrany EXE recznie."
+        runGuiTask("Pobieranie aktualizacji", worker)
+
+    def openGithub(event=None):
+        webbrowser.open(GITHUB_REPO_URL)
+
+    def openReleases(event=None):
+        webbrowser.open(GITHUB_RELEASES_URL)
+
+    def showHelp(event=None):
+        docPath = os.path.join(application_base_dir(), "docs", "01-szybki-start.md")
+        if os.path.exists(docPath):
+            os.startfile(docPath)
+        else:
+            wx.MessageBox("Dokumentacja jest w repozytorium GitHub oraz w folderze docs przy wersji zrodlowej.", "Pomoc", wx.OK | wx.ICON_INFORMATION, frame)
+            webbrowser.open(GITHUB_REPO_URL)
+
+    def showAbout(event=None):
+        wx.MessageBox(PROGRAM_NAME + " " + PROGRAM_VERSION + "\nAutor: kazek5p\nGitHub: " + GITHUB_REPO_URL, "O programie", wx.OK | wx.ICON_INFORMATION, frame)
 
     def refreshModeState(event=None):
         configMode = modeConfigRadio.GetValue()
@@ -1672,148 +2064,274 @@ def run_wx_gui():
 
     frame.CreateStatusBar()
 
-    modeBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Tryb pracy")
+    tabTitles = ["Projekt", "Mowa", "Opcje", "Praca", "Aktualizacja i pomoc"]
+    tabNavBox = wx.StaticBoxSizer(wx.HORIZONTAL, panel, "Zakladki")
+    tabNavLabel = wx.StaticText(panel, label="Zakladki:")
+    tabNavLabel.SetMinSize((90, -1))
+    tabNavBox.Add(tabNavLabel, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    tabButtons = []
+    for pos, title in enumerate(tabTitles):
+        style = wx.RB_GROUP if pos == 0 else 0
+        tabButton = named(wx.RadioButton(panel, label=title, style=style), "Zakladka " + title, "Zakladka " + title + ".")
+        tabButton.SetValue(pos == 0)
+        tabButtons.append(tabButton)
+        tabNavBox.Add(tabButton, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 10)
+    previousTabButton = named(wx.Button(panel, label="Poprzednia"), "Poprzednia zakladka", "Przejdz do poprzedniej zakladki programu.")
+    nextTabButton = named(wx.Button(panel, label="Nastepna"), "Nastepna zakladka", "Przejdz do nastepnej zakladki programu.")
+    tabNavBox.Add(previousTabButton, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    tabNavBox.Add(nextTabButton, 0, wx.ALIGN_CENTER_VERTICAL)
+    mainSizer.Add(tabNavBox, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 6)
+
+    notebook = wx.Simplebook(panel)
+    notebook.SetName("Obszar aktywnej zakladki")
+    notebook.SetToolTip("Zawartosc aktualnie wybranej zakladki.")
+    mainSizer.Add(notebook, 1, wx.EXPAND | wx.ALL, 6)
+
+    def makePage(title, helpText):
+        page = wx.Panel(notebook)
+        page.SetName(title)
+        page.SetToolTip(helpText)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        page.SetSizer(sizer)
+        notebook.AddPage(page, title)
+        return page, sizer
+
+    projectPage, projectSizer = makePage("Projekt", "Pliki, tryb pracy, profile ustawien i podstawowe operacje.")
+    speechPage, speechSizer = makePage("Mowa", "Zrodlo mowy, dodatek NVDA i RHVoice.")
+    optionsPage, optionsSizer = makePage("Opcje", "Foldery, tempo, wysokosc glosu i opcje audio.")
+    runPage, runSizer = makePage("Praca", "Uruchamianie, postep i log dzialania buildera.")
+    updatePage, updateSizer = makePage("Aktualizacja i pomoc", "Aktualizacja z GitHuba, pomoc i informacje o autorze.")
+    tabPages = [projectPage, speechPage, optionsPage, runPage, updatePage]
+
+    def focusFirstControlOnTab(index):
+        if index < 0 or index >= len(tabPages):
+            return
+        for child in tabPages[index].GetChildren():
+            if child.IsShownOnScreen() and child.CanAcceptFocus():
+                child.SetFocus()
+                return
+        focusTabButton(index)
+
+    def focusTabButton(index):
+        if index < 0 or index >= len(tabButtons):
+            return
+        tabButtons[index].SetFocus()
+        try:
+            wx.Accessible.NotifyEvent(wx.ACC_EVENT_OBJECT_FOCUS, tabButtons[index], wx.OBJID_CLIENT, 0)
+        except Exception:
+            pass
+
+    def selectTab(index, focusTab=True):
+        count = notebook.GetPageCount()
+        if count <= 0:
+            return
+        index = index % count
+        notebook.SetSelection(index)
+        for pos, tabButton in enumerate(tabButtons):
+            tabButton.SetValue(pos == index)
+        setStatus("Zakladka: " + tabTitles[index])
+        if focusTab:
+            wx.CallAfter(focusTabButton, index)
+
+    def nextTab(event=None):
+        selectTab(notebook.GetSelection() + 1)
+
+    def previousTab(event=None):
+        selectTab(notebook.GetSelection() - 1)
+
+    def tabButtonKeyDown(event):
+        focused = wx.Window.FindFocus()
+        if focused not in tabButtons:
+            event.Skip()
+            return
+        key = event.GetKeyCode()
+        if key in (wx.WXK_RIGHT, wx.WXK_DOWN):
+            nextTab()
+            return
+        if key in (wx.WXK_LEFT, wx.WXK_UP):
+            previousTab()
+            return
+        if key == wx.WXK_HOME:
+            selectTab(0)
+            return
+        if key == wx.WXK_END:
+            selectTab(len(tabTitles) - 1)
+            return
+        event.Skip()
+
+    def focusInitialTabStrip():
+        selectTab(0, True)
+
+    modeBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Tryb pracy")
     modeRow = wx.BoxSizer(wx.HORIZONTAL)
-    modeManualRadio = named(wx.RadioButton(panel, label="Tryb ręczny", style=wx.RB_GROUP), "Tryb ręczny", "Tryb ręczny. Wybierasz wordlistę, głos, port i operacje.")
-    modeConfigRadio = named(wx.RadioButton(panel, label="Plik konfiguracyjny CSV"), "Plik konfiguracyjny CSV", "Tryb pliku konfiguracyjnego CSV. Builder wykona operacje zapisane w CSV.")
+    modeManualRadio = named(wx.RadioButton(projectPage, label="Tryb ręczny", style=wx.RB_GROUP), "Tryb ręczny", "Tryb ręczny. Wybierasz wordlistę, głos, port i operacje.")
+    modeConfigRadio = named(wx.RadioButton(projectPage, label="Plik konfiguracyjny CSV"), "Plik konfiguracyjny CSV", "Tryb pliku konfiguracyjnego CSV. Builder wykona operacje zapisane w CSV.")
     modeManualRadio.SetValue(True)
     modeRow.Add(modeManualRadio, 0, wx.RIGHT, 18)
     modeRow.Add(modeConfigRadio, 0)
     modeBox.Add(modeRow, 0, wx.ALL, 4)
-    mainSizer.Add(modeBox, 0, wx.EXPAND | wx.ALL, 6)
+    projectSizer.Add(modeBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    configBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Konfiguracja CSV")
-    configCtrl = named(wx.TextCtrl(panel), "Plik konfiguracyjny CSV", "ścieżka do pliku konfiguracyjnego CSV.")
-    configBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz plik konfiguracyjny CSV")
+    profileBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Profile ustawien")
+    profileRow = wx.BoxSizer(wx.HORIZONTAL)
+    profileRow.Add(wx.StaticText(projectPage, label="Profil:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    profileCombo = named(wx.ComboBox(projectPage, style=wx.CB_DROPDOWN, size=(220, -1)), "Profil ustawien", "Nazwa profilu ustawien do zapisania albo wczytania.")
+    saveProfileButton = named(wx.Button(projectPage, label="Zapisz profil"), "Zapisz profil ustawien")
+    loadProfileButton = named(wx.Button(projectPage, label="Wczytaj profil"), "Wczytaj profil ustawien")
+    deleteProfileButton = named(wx.Button(projectPage, label="Usun profil"), "Usun profil ustawien")
+    openProfilesButton = named(wx.Button(projectPage, label="Folder profili"), "Otworz folder profili")
+    for ctrl in (profileCombo, saveProfileButton, loadProfileButton, deleteProfileButton, openProfilesButton):
+        profileRow.Add(ctrl, 0, wx.RIGHT, 8)
+    profileBox.Add(profileRow, 0, wx.EXPAND | wx.ALL, 4)
+    projectSizer.Add(profileBox, 0, wx.EXPAND | wx.ALL, 6)
+
+    configBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Konfiguracja CSV")
+    configCtrl = named(wx.TextCtrl(projectPage), "Plik konfiguracyjny CSV", "ścieżka do pliku konfiguracyjnego CSV.")
+    configBrowse = named(wx.Button(projectPage, label="Wybierz..."), "Wybierz plik konfiguracyjny CSV")
     configBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(configCtrl, "Wybierz plik konfiguracyjny", "CSV (*.csv)|*.csv|Wszystkie pliki (*.*)|*.*", True))
     addRow(configBox, "Plik konfiguracyjny:", configCtrl, configBrowse)
-    mainSizer.Add(configBox, 0, wx.EXPAND | wx.ALL, 6)
+    projectSizer.Add(configBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    manualBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Tryb ręczny")
-    wordlistCtrl = named(wx.TextCtrl(panel), "Wordlist CSV", "Plik CSV z kolumnami promptów.")
-    wordlistBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz wordlist CSV")
+    manualBox = wx.StaticBoxSizer(wx.VERTICAL, projectPage, "Tryb ręczny")
+    wordlistCtrl = named(wx.TextCtrl(projectPage), "Wordlist CSV", "Plik CSV z kolumnami promptów.")
+    wordlistBrowse = named(wx.Button(projectPage, label="Wybierz..."), "Wybierz wordlist CSV")
     wordlistBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(wordlistCtrl, "Wybierz wordlist CSV", "CSV (*.csv)|*.csv|Wszystkie pliki (*.*)|*.*"))
     addRow(manualBox, "Wordlist CSV:", wordlistCtrl, wordlistBrowse)
 
-    voiceCtrl = named(wx.TextCtrl(panel, value="Polish"), "Nazwa głosu", "Nazwa głosu i folderu na pliki audio.")
+    voiceCtrl = named(wx.TextCtrl(projectPage, value="Polish"), "Nazwa głosu", "Nazwa głosu i folderu na pliki audio.")
     addRow(manualBox, "Nazwa głosu:", voiceCtrl)
 
-    outputCtrl = named(wx.TextCtrl(panel, value=os.path.join(scriptDir, "voice_prompts.vpr")), "Plik wynikowy VPR", "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome.")
-    outputBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz plik wynikowy VPR")
+    outputCtrl = named(wx.TextCtrl(projectPage, value=defaultOutputPath()), "Plik wynikowy VPR", "Bazowa nazwa pliku VPR. Program utworzy warianty UV380-like i monochrome.")
+    outputBrowse = named(wx.Button(projectPage, label="Wybierz..."), "Wybierz plik wynikowy VPR")
     outputBrowse.Bind(wx.EVT_BUTTON, lambda event: browseOutput())
     addRow(manualBox, "Plik wynikowy VPR:", outputCtrl, outputBrowse)
 
     serialRow = wx.BoxSizer(wx.HORIZONTAL)
-    serialLabel = wx.StaticText(panel, label="Port COM radia:")
+    serialLabel = wx.StaticText(projectPage, label="Port COM radia:")
     serialLabel.SetMinSize((210, -1))
-    serialCtrl = named(wx.TextCtrl(panel, size=(120, -1)), "Port COM radia", "Port COM radia OpenGD77, na przykład COM5.")
-    refreshPortsButton = named(wx.Button(panel, label="Odśwież porty"), "Odśwież porty")
+    serialCtrl = named(wx.TextCtrl(projectPage, size=(120, -1)), "Port COM radia", "Port COM radia OpenGD77, na przykład COM5.")
+    refreshPortsButton = named(wx.Button(projectPage, label="Odśwież porty"), "Odśwież porty")
     refreshPortsButton.Bind(wx.EVT_BUTTON, lambda event: refreshPorts())
     serialRow.Add(serialLabel, 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
     serialRow.Add(serialCtrl, 0, wx.RIGHT, 8)
     serialRow.Add(refreshPortsButton, 0)
     manualBox.Add(serialRow, 0, wx.EXPAND | wx.ALL, 4)
 
-    listCtrl = named(wx.ListBox(panel, size=(-1, 90)), "Lista wykrytych portów", "Lista wykrytych portów. Strzałkami wybierz port.")
+    listCtrl = named(wx.ListBox(projectPage, size=(-1, 90)), "Lista wykrytych portów", "Lista wykrytych portów. Strzałkami wybierz port.")
     listCtrl.Bind(wx.EVT_LISTBOX, selectPortFromList)
     manualBox.Add(listCtrl, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
 
     opsRow = wx.BoxSizer(wx.HORIZONTAL)
-    downloadCheck = named(wx.CheckBox(panel, label="Pobierz / syntezuj audio"), "Pobierz lub syntezuj audio")
-    encodeCheck = named(wx.CheckBox(panel, label="Koduj AMBE w radiu"), "Koduj AMBE w radiu")
-    buildCheck = named(wx.CheckBox(panel, label="Zbuduj VPR"), "Zbuduj plik VPR")
+    downloadCheck = named(wx.CheckBox(projectPage, label="Pobierz / syntezuj audio"), "Pobierz lub syntezuj audio")
+    encodeCheck = named(wx.CheckBox(projectPage, label="Koduj AMBE w radiu"), "Koduj AMBE w radiu")
+    buildCheck = named(wx.CheckBox(projectPage, label="Zbuduj VPR"), "Zbuduj plik VPR")
     buildCheck.SetValue(True)
     for ctrl in (downloadCheck, encodeCheck, buildCheck):
         opsRow.Add(ctrl, 0, wx.RIGHT, 18)
     manualBox.Add(opsRow, 0, wx.ALL, 4)
 
-    sourceBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Źródło mowy przy pobieraniu")
+    sourceBox = wx.StaticBoxSizer(wx.VERTICAL, speechPage, "Źródło mowy przy pobieraniu")
     sourceRow = wx.BoxSizer(wx.HORIZONTAL)
-    speechTtsRadio = named(wx.RadioButton(panel, label="TTSMP3.com", style=wx.RB_GROUP), "Źródło mowy TTSMP3.com", "Źródło mowy: internetowa usługa TTSMP3.")
-    speechNvdaRadio = named(wx.RadioButton(panel, label="RHVoice z dodatku NVDA"), "Źródło mowy RHVoice z dodatku NVDA", "Źródło mowy: lokalny głos RHVoice z dodatku NVDA.")
+    speechTtsRadio = named(wx.RadioButton(speechPage, label="TTSMP3.com", style=wx.RB_GROUP), "Źródło mowy TTSMP3.com", "Źródło mowy: internetowa usługa TTSMP3.")
+    speechNvdaRadio = named(wx.RadioButton(speechPage, label="RHVoice z dodatku NVDA"), "Źródło mowy RHVoice z dodatku NVDA", "Źródło mowy: lokalny głos RHVoice z dodatku NVDA.")
     speechTtsRadio.SetValue(True)
     sourceRow.Add(speechTtsRadio, 0, wx.RIGHT, 18)
     sourceRow.Add(speechNvdaRadio, 0)
     sourceBox.Add(sourceRow, 0, wx.ALL, 4)
 
-    nvdaAddonCtrl = named(wx.TextCtrl(panel), "Plik dodatku NVDA", "Plik .nvda-addon zawierający głos RHVoice.")
-    nvdaAddonBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz dodatek NVDA")
+    nvdaAddonCtrl = named(wx.TextCtrl(speechPage), "Plik dodatku NVDA", "Plik .nvda-addon zawierający głos RHVoice.")
+    nvdaAddonBrowse = named(wx.Button(speechPage, label="Wybierz..."), "Wybierz dodatek NVDA")
     nvdaAddonBrowse.Bind(wx.EVT_BUTTON, lambda event: browseNvdaAddon())
     addRow(sourceBox, "Dodatek NVDA:", nvdaAddonCtrl, nvdaAddonBrowse)
 
-    rhvoiceDllCtrl = named(wx.TextCtrl(panel, value=findRhvoiceDllHint()), "RHVoice.dll", "Opcjonalna ścieżka do RHVoice.dll. Puste oznacza automatyczne wykrywanie.")
-    rhvoiceDllBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz RHVoice.dll")
-    rhvoiceDllBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(rhvoiceDllCtrl, "Wybierz RHVoice.dll", "RHVoice.dll|RHVoice.dll|DLL (*.dll)|*.dll|Wszystkie pliki (*.*)|*.*"))
-    addRow(sourceBox, "RHVoice.dll:", rhvoiceDllCtrl, rhvoiceDllBrowse)
-    manualBox.Add(sourceBox, 0, wx.EXPAND | wx.ALL, 4)
-    mainSizer.Add(manualBox, 0, wx.EXPAND | wx.ALL, 6)
+    speechSizer.Add(sourceBox, 0, wx.EXPAND | wx.ALL, 6)
+    projectSizer.Add(manualBox, 0, wx.EXPAND | wx.ALL, 6)
 
-    optionsBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Opcje")
-    workDirCtrl = named(wx.TextCtrl(panel, value=scriptDir), "Folder roboczy", "Folder roboczy dla plików tymczasowych i ścieżek względnych.")
-    workDirBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz folder roboczy")
+    optionsBox = wx.StaticBoxSizer(wx.VERTICAL, optionsPage, "Opcje")
+    workDirCtrl = named(wx.TextCtrl(optionsPage, value=defaultWorkDir()), "Folder roboczy", "Folder roboczy dla plików tymczasowych i ścieżek względnych.")
+    workDirBrowse = named(wx.Button(optionsPage, label="Wybierz..."), "Wybierz folder roboczy")
     workDirBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFolder(workDirCtrl, "Wybierz folder roboczy"))
     addRow(optionsBox, "Folder roboczy:", workDirCtrl, workDirBrowse)
 
-    ffmpegCtrl = named(wx.TextCtrl(panel, value=findFfmpegHint()), "ffmpeg.exe", "ścieżka do ffmpeg.exe albo puste, jeśli ffmpeg jest w PATH.")
-    ffmpegBrowse = named(wx.Button(panel, label="Wybierz..."), "Wybierz ffmpeg.exe")
-    ffmpegBrowse.Bind(wx.EVT_BUTTON, lambda event: browseFile(ffmpegCtrl, "Wybierz ffmpeg.exe", "ffmpeg.exe|ffmpeg.exe|EXE (*.exe)|*.exe|Wszystkie pliki (*.*)|*.*"))
-    addRow(optionsBox, "ffmpeg.exe:", ffmpegCtrl, ffmpegBrowse)
-
     audioRow = wx.BoxSizer(wx.HORIZONTAL)
-    audioRow.Add(wx.StaticText(panel, label="Głośność dB:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-    gainCtrl = named(wx.TextCtrl(panel, value=gain, size=(70, -1)), "Głośność dB", "Zmiana głośności w decybelach.")
+    audioRow.Add(wx.StaticText(optionsPage, label="Głośność dB:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    gainCtrl = named(wx.TextCtrl(optionsPage, value=gain, size=(70, -1)), "Głośność dB", "Zmiana głośności w decybelach.")
     audioRow.Add(gainCtrl, 0, wx.RIGHT, 20)
-    audioRow.Add(wx.StaticText(panel, label="Tempo:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-    tempoCtrl = named(wx.TextCtrl(panel, value=atempo, size=(70, -1)), "Tempo", "Tempo audio od 0.5 do 2.")
+    audioRow.Add(wx.StaticText(optionsPage, label="Tempo:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    tempoCtrl = named(wx.TextCtrl(optionsPage, value=atempo, size=(70, -1)), "Tempo", "Tempo audio od 0.5 do 2.")
     audioRow.Add(tempoCtrl, 0, wx.RIGHT, 20)
-    audioRow.Add(wx.StaticText(panel, label="Alias tempa:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-    aliasCtrl = named(wx.TextCtrl(panel, size=(120, -1)), "Alias tempa", "Opcjonalny alias tempa używany w nazwie pliku.")
-    audioRow.Add(aliasCtrl, 0, wx.RIGHT, 20)
-    audioRow.Add(wx.StaticText(panel, label="Wysokość RHVoice:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
-    pitchCtrl = named(wx.TextCtrl(panel, value=rhvoiceRelativePitch, size=(70, -1)), "Wysokość RHVoice", "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos.")
-    audioRow.Add(pitchCtrl, 0)
+    audioRow.Add(wx.StaticText(optionsPage, label="Tempo liter/cyfr:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    compactTempoCtrl = named(wx.TextCtrl(optionsPage, value=compactAtempo, size=(70, -1)), "Tempo liter i cyfr", "Osobne tempo dla pojedynczych liter, cyfr, spacji i kropki. Puste oznacza tempo zwykłe.")
+    audioRow.Add(compactTempoCtrl, 0, wx.RIGHT, 20)
     optionsBox.Add(audioRow, 0, wx.ALL, 4)
 
+    audioRow2 = wx.BoxSizer(wx.HORIZONTAL)
+    audioRow2.Add(wx.StaticText(optionsPage, label="Alias tempa:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    aliasCtrl = named(wx.TextCtrl(optionsPage, size=(120, -1)), "Alias tempa", "Opcjonalny alias tempa używany w nazwie pliku.")
+    audioRow2.Add(aliasCtrl, 0, wx.RIGHT, 20)
+    audioRow2.Add(wx.StaticText(optionsPage, label="Wysokość RHVoice:"), 0, wx.ALIGN_CENTER_VERTICAL | wx.RIGHT, 8)
+    pitchCtrl = named(wx.TextCtrl(optionsPage, value=rhvoiceRelativePitch, size=(70, -1)), "Wysokość RHVoice", "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos.")
+    audioRow2.Add(pitchCtrl, 0)
+    optionsBox.Add(audioRow2, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 4)
+
     optionChecksRow = wx.BoxSizer(wx.HORIZONTAL)
-    overwriteCheck = named(wx.CheckBox(panel, label="Nadpisuj istniejące pliki"), "Nadpisuj istniejące pliki")
-    removeSilenceCheck = named(wx.CheckBox(panel, label="Usuń ciszę z początku"), "Usuń ciszę z początku")
+    overwriteCheck = named(wx.CheckBox(optionsPage, label="Nadpisuj istniejące pliki"), "Nadpisuj istniejące pliki")
+    removeSilenceCheck = named(wx.CheckBox(optionsPage, label="Usuń ciszę z początku"), "Usuń ciszę z początku")
     optionChecksRow.Add(overwriteCheck, 0, wx.RIGHT, 18)
     optionChecksRow.Add(removeSilenceCheck, 0)
     optionsBox.Add(optionChecksRow, 0, wx.ALL, 4)
-    mainSizer.Add(optionsBox, 0, wx.EXPAND | wx.ALL, 6)
+    optionsSizer.Add(optionsBox, 0, wx.EXPAND | wx.ALL, 6)
 
     buttonsRow = wx.BoxSizer(wx.HORIZONTAL)
-    runButton = named(wx.Button(panel, label="Uruchom Alt+R"), "Uruchom builder")
-    stopButton = named(wx.Button(panel, label="Zatrzymaj Alt+S"), "Zatrzymaj builder")
-    depsButton = named(wx.Button(panel, label="Test zależności"), "Test zależności")
-    openButton = named(wx.Button(panel, label="Otwórz folder"), "Otwórz folder roboczy")
-    clearButton = named(wx.Button(panel, label="Wyczyść log"), "Wyczyść log")
-    closeButton = named(wx.Button(panel, label="Zamknij"), "Zamknij program")
+    runButton = named(wx.Button(runPage, label="Uruchom Alt+R"), "Uruchom builder")
+    stopButton = named(wx.Button(runPage, label="Zatrzymaj Alt+S"), "Zatrzymaj builder")
+    depsButton = named(wx.Button(runPage, label="Test zależności"), "Test zależności")
+    openButton = named(wx.Button(runPage, label="Otwórz folder"), "Otwórz folder roboczy")
+    clearButton = named(wx.Button(runPage, label="Wyczyść log"), "Wyczyść log")
+    closeButton = named(wx.Button(runPage, label="Zamknij"), "Zamknij program")
     stopButton.Enable(False)
     for ctrl in (runButton, stopButton, depsButton, openButton, clearButton, closeButton):
         buttonsRow.Add(ctrl, 0, wx.RIGHT, 8)
-    mainSizer.Add(buttonsRow, 0, wx.EXPAND | wx.ALL, 6)
+    runSizer.Add(buttonsRow, 0, wx.EXPAND | wx.ALL, 6)
 
-    statusBox = wx.StaticBoxSizer(wx.VERTICAL, panel, "Status i log")
-    statusText = wx.StaticText(panel, label="Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić.")
+    statusBox = wx.StaticBoxSizer(wx.VERTICAL, runPage, "Status i log")
+    statusText = wx.StaticText(runPage, label="Gotowe. Wybierz pliki i naciśnij Alt+R, aby uruchomić.")
     statusText.SetName("Status programu")
     statusBox.Add(statusText, 0, wx.EXPAND | wx.ALL, 4)
     progressRow = wx.BoxSizer(wx.HORIZONTAL)
-    progressGauge = named(wx.Gauge(panel, range=100, style=wx.GA_HORIZONTAL), "Pasek postępu pracy", "Pasek postępu pracy buildera.")
+    progressGauge = named(wx.Gauge(runPage, range=100, style=wx.GA_HORIZONTAL), "Pasek postępu pracy", "Pasek postępu pracy buildera.")
     progressGauge.SetValue(0)
-    progressTextCtrl = named(wx.TextCtrl(panel, value="Postęp pracy: 0 procent", style=wx.TE_READONLY, size=(280, -1)), "Postęp pracy", "Procent i etap aktualnej pracy buildera.")
+    progressTextCtrl = named(wx.TextCtrl(runPage, value="Postęp pracy: 0 procent", style=wx.TE_READONLY, size=(280, -1)), "Postęp pracy", "Procent i etap aktualnej pracy buildera.")
     progressRow.Add(progressGauge, 1, wx.EXPAND | wx.RIGHT, 8)
     progressRow.Add(progressTextCtrl, 0, wx.EXPAND)
     statusBox.Add(progressRow, 0, wx.EXPAND | wx.ALL, 4)
-    logCtrl = named(wx.TextCtrl(panel, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 160)), "Log działania buildera", "Log działania buildera.")
+    logCtrl = named(wx.TextCtrl(runPage, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 260)), "Log działania buildera", "Log działania buildera.")
     statusBox.Add(logCtrl, 1, wx.EXPAND | wx.ALL, 4)
-    mainSizer.Add(statusBox, 1, wx.EXPAND | wx.ALL, 6)
+    runSizer.Add(statusBox, 1, wx.EXPAND | wx.ALL, 6)
+
+    updateInfoBox = wx.StaticBoxSizer(wx.VERTICAL, updatePage, "Aktualizacja, pomoc i autor")
+    updateInfoText = wx.StaticText(updatePage, label=PROGRAM_NAME + " " + PROGRAM_VERSION + "\nAutor: kazek5p\nZrodlo aktualizacji: " + GITHUB_RELEASES_URL)
+    updateInfoText.SetName("Informacje o programie")
+    updateInfoBox.Add(updateInfoText, 0, wx.EXPAND | wx.ALL, 4)
+    updateButtons = wx.BoxSizer(wx.HORIZONTAL)
+    checkUpdateButton = named(wx.Button(updatePage, label="Sprawdz aktualizacje"), "Sprawdz aktualizacje na GitHub")
+    installUpdateButton = named(wx.Button(updatePage, label="Pobierz i zainstaluj"), "Pobierz i zainstaluj najnowsza wersje z GitHub")
+    releasesButton = named(wx.Button(updatePage, label="Releases"), "Otworz strone GitHub Releases")
+    githubButton = named(wx.Button(updatePage, label="GitHub"), "Otworz repozytorium GitHub")
+    helpButton = named(wx.Button(updatePage, label="Pomoc"), "Otworz pomoc programu")
+    aboutButton = named(wx.Button(updatePage, label="O programie"), "Informacje o programie i autorze")
+    for ctrl in (checkUpdateButton, installUpdateButton, releasesButton, githubButton, helpButton, aboutButton):
+        updateButtons.Add(ctrl, 0, wx.RIGHT, 8)
+    updateInfoBox.Add(updateButtons, 0, wx.EXPAND | wx.ALL, 4)
+    updateStatusCtrl = named(wx.TextCtrl(updatePage, value="Aktualizacja: nie sprawdzano jeszcze GitHuba.", style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_RICH2, size=(-1, 220)), "Status aktualizacji", "Status sprawdzania i pobierania aktualizacji z GitHuba.")
+    updateInfoBox.Add(updateStatusCtrl, 1, wx.EXPAND | wx.ALL, 4)
+    updateSizer.Add(updateInfoBox, 1, wx.EXPAND | wx.ALL, 6)
 
     configWidgets = [configCtrl, configBrowse]
     manualWidgets = [
         wordlistCtrl, wordlistBrowse, voiceCtrl, outputCtrl, outputBrowse,
         serialCtrl, refreshPortsButton, listCtrl, downloadCheck, encodeCheck, buildCheck,
-        speechTtsRadio, speechNvdaRadio, nvdaAddonCtrl, nvdaAddonBrowse, rhvoiceDllCtrl, rhvoiceDllBrowse
+        speechTtsRadio, speechNvdaRadio, nvdaAddonCtrl, nvdaAddonBrowse
     ]
 
     modeManualRadio.Bind(wx.EVT_RADIOBUTTON, refreshModeState)
@@ -1824,6 +2342,24 @@ def run_wx_gui():
     openButton.Bind(wx.EVT_BUTTON, openWorkFolder)
     clearButton.Bind(wx.EVT_BUTTON, clearLog)
     closeButton.Bind(wx.EVT_BUTTON, lambda event: frame.Close())
+    saveProfileButton.Bind(wx.EVT_BUTTON, saveProfile)
+    loadProfileButton.Bind(wx.EVT_BUTTON, loadProfile)
+    deleteProfileButton.Bind(wx.EVT_BUTTON, deleteProfile)
+    openProfilesButton.Bind(wx.EVT_BUTTON, openProfilesFolder)
+    previousTabButton.Bind(wx.EVT_BUTTON, previousTab)
+    nextTabButton.Bind(wx.EVT_BUTTON, nextTab)
+    frame.Bind(wx.EVT_CHAR_HOOK, tabButtonKeyDown)
+    panel.Bind(wx.EVT_CHAR_HOOK, tabButtonKeyDown)
+    for pos, tabButton in enumerate(tabButtons):
+        tabButton.Bind(wx.EVT_RADIOBUTTON, lambda event, index=pos: selectTab(index, False))
+        tabButton.Bind(wx.EVT_KEY_DOWN, tabButtonKeyDown)
+        tabButton.Bind(wx.EVT_CHAR_HOOK, tabButtonKeyDown)
+    checkUpdateButton.Bind(wx.EVT_BUTTON, checkForUpdates)
+    installUpdateButton.Bind(wx.EVT_BUTTON, installUpdate)
+    releasesButton.Bind(wx.EVT_BUTTON, openReleases)
+    githubButton.Bind(wx.EVT_BUTTON, openGithub)
+    helpButton.Bind(wx.EVT_BUTTON, showHelp)
+    aboutButton.Bind(wx.EVT_BUTTON, showAbout)
     frame.Bind(wx.EVT_CLOSE, onClose)
 
     ID_RUN = wx.NewIdRef()
@@ -1831,28 +2367,52 @@ def run_wx_gui():
     ID_LOG = wx.NewIdRef()
     ID_PROGRESS = wx.NewIdRef()
     ID_REFRESH = wx.NewIdRef()
+    ID_NEXT_TAB = wx.NewIdRef()
+    ID_PREVIOUS_TAB = wx.NewIdRef()
+    ID_TAB_1 = wx.NewIdRef()
+    ID_TAB_2 = wx.NewIdRef()
+    ID_TAB_3 = wx.NewIdRef()
+    ID_TAB_4 = wx.NewIdRef()
+    ID_TAB_5 = wx.NewIdRef()
     frame.Bind(wx.EVT_MENU, startRun, id=ID_RUN)
     frame.Bind(wx.EVT_MENU, stopRun, id=ID_STOP)
     frame.Bind(wx.EVT_MENU, lambda event: logCtrl.SetFocus(), id=ID_LOG)
     frame.Bind(wx.EVT_MENU, lambda event: progressTextCtrl.SetFocus(), id=ID_PROGRESS)
     frame.Bind(wx.EVT_MENU, lambda event: refreshPorts(), id=ID_REFRESH)
+    frame.Bind(wx.EVT_MENU, nextTab, id=ID_NEXT_TAB)
+    frame.Bind(wx.EVT_MENU, previousTab, id=ID_PREVIOUS_TAB)
+    frame.Bind(wx.EVT_MENU, lambda event: selectTab(0), id=ID_TAB_1)
+    frame.Bind(wx.EVT_MENU, lambda event: selectTab(1), id=ID_TAB_2)
+    frame.Bind(wx.EVT_MENU, lambda event: selectTab(2), id=ID_TAB_3)
+    frame.Bind(wx.EVT_MENU, lambda event: selectTab(3), id=ID_TAB_4)
+    frame.Bind(wx.EVT_MENU, lambda event: selectTab(4), id=ID_TAB_5)
     frame.SetAcceleratorTable(wx.AcceleratorTable([
         (wx.ACCEL_ALT, ord('R'), ID_RUN),
         (wx.ACCEL_ALT, ord('S'), ID_STOP),
         (wx.ACCEL_ALT, ord('L'), ID_LOG),
         (wx.ACCEL_ALT, ord('P'), ID_PROGRESS),
         (wx.ACCEL_NORMAL, wx.WXK_F5, ID_REFRESH),
+        (wx.ACCEL_CTRL, wx.WXK_TAB, ID_NEXT_TAB),
+        (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, wx.WXK_TAB, ID_PREVIOUS_TAB),
+        (wx.ACCEL_CTRL, wx.WXK_PAGEDOWN, ID_NEXT_TAB),
+        (wx.ACCEL_CTRL, wx.WXK_PAGEUP, ID_PREVIOUS_TAB),
+        (wx.ACCEL_ALT, ord('1'), ID_TAB_1),
+        (wx.ACCEL_ALT, ord('2'), ID_TAB_2),
+        (wx.ACCEL_ALT, ord('3'), ID_TAB_3),
+        (wx.ACCEL_ALT, ord('4'), ID_TAB_4),
+        (wx.ACCEL_ALT, ord('5'), ID_TAB_5),
     ]))
 
     timer = wx.Timer(frame)
     frame.Bind(wx.EVT_TIMER, pumpQueue, timer)
     timer.Start(100)
 
+    refreshProfileList()
     refreshPorts()
     refreshModeState()
     panel.FitInside()
     frame.Show()
-    wordlistCtrl.SetFocus()
+    wx.CallAfter(focusInitialTabStrip)
     app.MainLoop()
     return 0
 
@@ -1881,7 +2441,7 @@ def run_tk_gui():
         return exe
 
     def findFfmpegHint():
-        return findFfmpegExecutable()
+        return ""
 
 
     def findRhvoiceDllHint():
@@ -1899,15 +2459,14 @@ def run_tk_gui():
     configPathVar = tk.StringVar()
     wordlistPathVar = tk.StringVar()
     voiceNameVar = tk.StringVar(value="Polish")
-    outputPathVar = tk.StringVar(value=os.path.join(scriptDir, "voice_prompts.vpr"))
-    workDirVar = tk.StringVar(value=scriptDir)
+    outputPathVar = tk.StringVar(value=defaultOutputPath())
+    workDirVar = tk.StringVar(value=defaultWorkDir())
     serialPortVar = tk.StringVar()
     speechSourceVar = tk.StringVar(value="ttsmp3")
     nvdaAddonPathVar = tk.StringVar()
-    rhvoiceDllPathVar = tk.StringVar(value=findRhvoiceDllHint())
-    ffmpegPathVar = tk.StringVar(value=findFfmpegHint())
     gainVar = tk.StringVar(value=gain)
     tempoVar = tk.StringVar(value=atempo)
+    compactTempoVar = tk.StringVar(value=compactAtempo)
     aliasVar = tk.StringVar()
     pitchVar = tk.StringVar(value=rhvoiceRelativePitch)
     downloadVar = tk.BooleanVar(value=False)
@@ -2011,13 +2570,11 @@ def run_tk_gui():
         except Exception as err:
             messages.append("pyserial: BŁĄD - " + str(err))
 
-        ffmpegCandidate = ffmpegPathVar.get().strip()
+        ffmpegCandidate = findFfmpegExecutable()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
-            messages.append("ffmpeg: OK (" + ffmpegCandidate + ")")
-        elif ffmpegAvailable():
-            messages.append("ffmpeg: OK (" + findFfmpegExecutable() + ")")
+            messages.append("ffmpeg: OK, wykryty automatycznie (" + ffmpegCandidate + ")")
         else:
-            messages.append("ffmpeg: BRAK. Wybierz ffmpeg.exe albo dodaj ffmpeg do PATH.")
+            messages.append("ffmpeg: BRAK. Standardowy EXE ma ffmpeg wbudowany. W wersji serwisowej ustaw FFMPEG_EXE albo poloz ffmpeg.exe obok programu.")
 
         addonCandidate = nvdaAddonPathVar.get().strip()
         if addonCandidate:
@@ -2029,10 +2586,10 @@ def run_tk_gui():
         elif speechSourceVar.get() == "nvda":
             messages.append("NVDA/RHVoice add-on: missing .nvda-addon path.")
 
-        if speechSourceVar.get() == "nvda" or addonCandidate or rhvoiceDllPathVar.get().strip():
+        if speechSourceVar.get() == "nvda" or addonCandidate:
             try:
-                dll = findRhvoiceDll(rhvoiceDllPathVar.get().strip())
-                messages.append("RHVoice.dll: OK (" + dll + ")")
+                dll = findRhvoiceDll("")
+                messages.append("RHVoice.dll: OK, wykryty automatycznie (" + dll + ")")
             except Exception as err:
                 messages.append("RHVoice.dll: ERROR - " + str(err))
         else:
@@ -2068,8 +2625,6 @@ def run_tk_gui():
                     if not addonPath:
                         raise ValueError("Wybierz plik .nvda-addon z glosem RHVoice.")
                     args.extend(["-N", addonPath])
-                    if rhvoiceDllPathVar.get().strip():
-                        args.extend(["-L", rhvoiceDllPathVar.get().strip()])
                 else:
                     args.append("-T")
             if encodeVar.get():
@@ -2078,6 +2633,9 @@ def run_tk_gui():
                 outputPath = outputPathVar.get().strip()
                 if not outputPath:
                     raise ValueError("Wybierz nazwę pliku wyjściowego VPR.")
+                outputDir = os.path.dirname(os.path.abspath(outputPath))
+                if outputDir:
+                    ensureDir(outputDir)
                 args.extend(["-b", outputPath])
 
         if overwriteVar.get():
@@ -2088,6 +2646,8 @@ def run_tk_gui():
             args.extend(["-g", gainVar.get().strip()])
         if tempoVar.get().strip():
             args.extend(["-t", tempoVar.get().strip()])
+        if compactTempoVar.get().strip():
+            args.extend(["-l", compactTempoVar.get().strip()])
         if aliasVar.get().strip():
             args.extend(["-A", aliasVar.get().strip()])
         if pitchVar.get().strip():
@@ -2100,9 +2660,8 @@ def run_tk_gui():
             return
         try:
             args = buildCommand()
-            workDir = workDirVar.get().strip() or scriptDir
-            if not os.path.isdir(workDir):
-                raise ValueError("Folder roboczy nie istnieje: " + workDir)
+            workDir = workDirVar.get().strip() or defaultWorkDir()
+            ensureDir(workDir)
         except Exception as err:
             messagebox.showerror("Brak danych", str(err), parent=root)
             setStatus(str(err))
@@ -2111,12 +2670,10 @@ def run_tk_gui():
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         env["PYTHONUNBUFFERED"] = "1"
-        ffmpegCandidate = ffmpegPathVar.get().strip() or findFfmpegExecutable()
+        ffmpegCandidate = findFfmpegExecutable()
         if ffmpegCandidate and os.path.exists(ffmpegCandidate):
             env["PATH"] = os.path.dirname(ffmpegCandidate) + os.pathsep + env.get("PATH", "")
             env["FFMPEG_EXE"] = ffmpegCandidate
-        if rhvoiceDllPathVar.get().strip():
-            env["RHVOICE_DLL"] = rhvoiceDllPathVar.get().strip()
 
         if is_frozen_app():
             command = [sys.executable] + args
@@ -2190,7 +2747,7 @@ def run_tk_gui():
         root.after(100, pumpQueue)
 
     def openWorkFolder():
-        path = workDirVar.get().strip() or scriptDir
+        path = workDirVar.get().strip() or defaultWorkDir()
         if os.path.isdir(path):
             os.startfile(path)
 
@@ -2281,11 +2838,6 @@ def run_tk_gui():
     nvdaAddonEntry.grid(row=1, column=1, sticky="ew", padx=6, pady=4)
     nvdaAddonBrowse = tk.Button(speechFrame, text="Wybierz...", command=browseNvdaAddon)
     nvdaAddonBrowse.grid(row=1, column=2, padx=6, pady=4)
-    tk.Label(speechFrame, text="RHVoice.dll:").grid(row=2, column=0, sticky="w", padx=6, pady=4)
-    rhvoiceDllEntry = tk.Entry(speechFrame, textvariable=rhvoiceDllPathVar)
-    rhvoiceDllEntry.grid(row=2, column=1, sticky="ew", padx=6, pady=4)
-    rhvoiceDllBrowse = tk.Button(speechFrame, text="Wybierz...", command=lambda: browseFile(rhvoiceDllPathVar, "Wybierz RHVoice.dll", [("RHVoice.dll", "RHVoice.dll"), ("DLL", "*.dll"), ("Wszystkie pliki", "*.*")]))
-    rhvoiceDllBrowse.grid(row=2, column=2, padx=6, pady=4)
     speechFrame.columnconfigure(1, weight=1)
 
     optionsFrame = tk.LabelFrame(mainFrame, text="Opcje")
@@ -2296,29 +2848,26 @@ def run_tk_gui():
     workDirBrowse = tk.Button(optionsFrame, text="Wybierz...", command=lambda: browseFolder(workDirVar, "Wybierz folder roboczy"))
     workDirBrowse.grid(row=0, column=2, padx=6, pady=4)
 
-    tk.Label(optionsFrame, text="ffmpeg.exe:").grid(row=1, column=0, sticky="w", padx=6, pady=4)
-    ffmpegEntry = tk.Entry(optionsFrame, textvariable=ffmpegPathVar)
-    ffmpegEntry.grid(row=1, column=1, sticky="ew", padx=6, pady=4)
-    ffmpegBrowse = tk.Button(optionsFrame, text="Wybierz...", command=lambda: browseFile(ffmpegPathVar, "Wybierz ffmpeg.exe", [("ffmpeg.exe", "ffmpeg.exe"), ("EXE", "*.exe"), ("Wszystkie pliki", "*.*")]))
-    ffmpegBrowse.grid(row=1, column=2, padx=6, pady=4)
-
     tk.Label(optionsFrame, text="Głośność dB:").grid(row=2, column=0, sticky="w", padx=6, pady=4)
     gainEntry = tk.Entry(optionsFrame, textvariable=gainVar, width=8)
     gainEntry.grid(row=2, column=1, sticky="w", padx=6, pady=4)
     tk.Label(optionsFrame, text="Tempo:").grid(row=2, column=1, sticky="w", padx=(95, 6), pady=4)
     tempoEntry = tk.Entry(optionsFrame, textvariable=tempoVar, width=8)
     tempoEntry.grid(row=2, column=1, sticky="w", padx=(150, 6), pady=4)
-    tk.Label(optionsFrame, text="Alias tempa:").grid(row=2, column=1, sticky="w", padx=(235, 6), pady=4)
+    tk.Label(optionsFrame, text="Tempo liter/cyfr:").grid(row=2, column=1, sticky="w", padx=(235, 6), pady=4)
+    compactTempoEntry = tk.Entry(optionsFrame, textvariable=compactTempoVar, width=8)
+    compactTempoEntry.grid(row=2, column=1, sticky="w", padx=(365, 6), pady=4)
+    tk.Label(optionsFrame, text="Alias tempa:").grid(row=3, column=0, sticky="w", padx=6, pady=4)
     aliasEntry = tk.Entry(optionsFrame, textvariable=aliasVar, width=14)
-    aliasEntry.grid(row=2, column=1, sticky="w", padx=(320, 6), pady=4)
-    tk.Label(optionsFrame, text="Wysokość RHVoice:").grid(row=2, column=1, sticky="w", padx=(460, 6), pady=4)
+    aliasEntry.grid(row=3, column=1, sticky="w", padx=6, pady=4)
+    tk.Label(optionsFrame, text="Wysokość RHVoice:").grid(row=3, column=1, sticky="w", padx=(160, 6), pady=4)
     pitchEntry = tk.Entry(optionsFrame, textvariable=pitchVar, width=8)
-    pitchEntry.grid(row=2, column=1, sticky="w", padx=(590, 6), pady=4)
+    pitchEntry.grid(row=3, column=1, sticky="w", padx=(290, 6), pady=4)
 
     overwriteCheck = tk.Checkbutton(optionsFrame, text="Nadpisuj istniejące pliki", variable=overwriteVar)
     removeSilenceCheck = tk.Checkbutton(optionsFrame, text="Usuń ciszę z początku", variable=removeSilenceVar)
-    overwriteCheck.grid(row=3, column=0, sticky="w", padx=6, pady=4)
-    removeSilenceCheck.grid(row=3, column=1, sticky="w", padx=6, pady=4)
+    overwriteCheck.grid(row=4, column=0, sticky="w", padx=6, pady=4)
+    removeSilenceCheck.grid(row=4, column=1, sticky="w", padx=6, pady=4)
     optionsFrame.columnconfigure(1, weight=1)
 
     buttonsFrame = tk.Frame(mainFrame)
@@ -2348,7 +2897,7 @@ def run_tk_gui():
     manualWidgets = [
         wordlistEntry, wordlistBrowse, voiceEntry, outputEntry, outputBrowse,
         serialEntry, refreshPortsButton, portsList, downloadCheck, encodeCheck, buildCheck,
-        speechTtsRadio, speechNvdaRadio, nvdaAddonEntry, nvdaAddonBrowse, rhvoiceDllEntry, rhvoiceDllBrowse
+        speechTtsRadio, speechNvdaRadio, nvdaAddonEntry, nvdaAddonBrowse
     ]
 
     for widget, text in [
@@ -2359,13 +2908,12 @@ def run_tk_gui():
         (serialEntry, "Port COM radia OpenGD77, na przykład COM5."),
         (portsList, "Lista wykrytych portów. Strzałkami wybierz port."),
         (workDirEntry, "Folder roboczy dla plików tymczasowych i ścieżek względnych."),
-        (ffmpegEntry, "Ścieżka do ffmpeg.exe albo puste, jeśli ffmpeg jest w PATH."),
         (speechTtsRadio, "Zrodlo mowy: internetowa usluga TTSMP3."),
         (speechNvdaRadio, "Zrodlo mowy: lokalny glos RHVoice z dodatku NVDA."),
         (nvdaAddonEntry, "Plik .nvda-addon zawierajacy glos RHVoice."),
-        (rhvoiceDllEntry, "Opcjonalna sciezka do RHVoice.dll. Puste oznacza automatyczne wykrywanie."),
         (gainEntry, "Zmiana głośności w decybelach."),
         (tempoEntry, "Tempo audio od 0.5 do 2."),
+        (compactTempoEntry, "Osobne tempo dla pojedynczych liter, cyfr, spacji i kropki. Puste oznacza tempo zwykłe."),
         (aliasEntry, "Opcjonalny alias tempa używany w nazwie pliku."),
         (pitchEntry, "Wysokość głosu RHVoice. 1.0 to normalnie; mniejsza wartość obniża głos."),
         (logText, "Log działania buildera.")

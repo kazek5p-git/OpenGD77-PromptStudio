@@ -1,4 +1,4 @@
-# OpenGD77 Prompt Studio
+﻿# OpenGD77 Prompt Studio
 
 OpenGD77 Prompt Studio to dostepne dla czytnikow ekranu narzedzie Windows do tworzenia pakietow komunikatow glosowych VPR dla OpenGD77.
 
@@ -10,11 +10,14 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 - Generuje mowe lokalnie z glosu RHVoice dostarczonego jako `.nvda-addon`.
 - Pozwala regulowac wysokosc glosu RHVoice przy lokalnej syntezie.
 - Konwertuje audio przez `ffmpeg` do surowego PCM 8 kHz, 16-bit, mono.
+- Pozwala ustawic osobne tempo dla pojedynczych liter, cyfr, spacji i kropki.
 - Gotowy release ma wbudowany `ffmpeg.exe`, wiec zwykly uzytkownik nie musi wpisywac sciezki.
 - Koduje probki AMBE przez radio OpenGD77 podlaczone przez port COM.
 - Buduje pliki VPR w wariantach `UV380-like` i `monochrome`.
-- Ma natywny interfejs `wxPython` z normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, radiobuttony, liste portow i log.
+- Ma natywny interfejs `wxPython` z dostepnym paskiem zakladek opartym o radiobuttony oraz normalnymi kontrolkami Windows: pola edycji, przyciski, checkboxy, liste portow i log.
 - Pokazuje postep pracy na dostepnym pasku postepu; fokus na postep ustawisz skrotem `Alt+P`.
+- Zapisuje i wczytuje profile ustawien z folderu `%APPDATA%\OpenGD77PromptStudio\profiles`.
+- Ma zakladke aktualizacji, ktora sprawdza i pobiera najnowszy release z GitHuba.
 
 ## Najszybsze uzycie
 
@@ -43,8 +46,8 @@ Do syntezy RHVoice potrzebny jest `RHVoice.dll`. Gotowy EXE z release ma ten sil
 Dla gotowego EXE:
 
 - Windows 10 lub Windows 11.
-- `ffmpeg.exe` tylko przy buildach bez wbudowanego ffmpeg albo przy pracy ze zrodel. Standardowy release ma ffmpeg w EXE.
-- `RHVoice.dll`, jesli uzywasz glosu `.nvda-addon` RHVoice i korzystasz z builda bez wbudowanego silnika. Gotowy release ma DLL w EXE.
+- `ffmpeg.exe` tylko przy buildach bez wbudowanego ffmpeg albo przy pracy ze zrodel. Standardowy release ma ffmpeg w EXE i GUI wykrywa go automatycznie.
+- `RHVoice.dll` tylko w trybie serwisowym przez zmienna `RHVOICE_DLL`, plik obok EXE albo parametr CLI `-L`. Gotowy release ma DLL w EXE i GUI wykrywa ja automatycznie.
 - Radio z OpenGD77 podlaczone jako port COM, jesli kodujesz AMBE.
 
 Dla pracy ze zrodel:
@@ -76,4 +79,4 @@ dist\OpenGD77PromptStudio.exe
 
 ## Status
 
-Wersja projektu: `0.3.0`.
+Wersja projektu: `0.4.3`.

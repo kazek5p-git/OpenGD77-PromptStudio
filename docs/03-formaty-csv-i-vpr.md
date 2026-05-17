@@ -22,7 +22,7 @@ Przyklad jest w `examples/wordlist_sample.csv`.
 Kolumny trybu konfiguracyjnego:
 
 ```csv
-Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo,Nvda_addon_file,RHVoice_dll,RHVoice_pitch
+Wordlist_file,Voice_name,Voice_pack_name,Download,Encode,Createpack,Volume_change_db,Remove_silence,Audio_tempo,Compact_audio_tempo,Nvda_addon_file,RHVoice_dll,RHVoice_pitch
 ```
 
 Wartosci `Download`, `Encode`, `Createpack` i `Remove_silence` przyjmuja `y` albo `n`.
@@ -30,6 +30,8 @@ Wartosci `Download`, `Encode`, `Createpack` i `Remove_silence` przyjmuja `y` alb
 `Nvda_addon_file` jest opcjonalne. Jezeli `Download` ma wartosc `y` i `Nvda_addon_file` jest wypelnione, program uzyje lokalnego RHVoice z dodatku NVDA zamiast TTSMP3.
 
 `RHVoice_dll` jest opcjonalne. Jezeli jest puste, program sprobuje wykryc DLL automatycznie.
+
+`Compact_audio_tempo` jest opcjonalne. Ustawia osobne tempo dla pojedynczych liter, cyfr, spacji i kropki. Jezeli jest puste, program uzywa wartosci `Audio_tempo`. Dla zgodnosci akceptowana jest tez kolumna `Letter_audio_tempo`.
 
 `RHVoice_pitch` jest opcjonalne. Wartosc `1.0` oznacza normalna wysokosc glosu; np. `0.94` delikatnie obniza glos RHVoice.
 
@@ -44,6 +46,8 @@ Po pobraniu albo lokalnej syntezie program wywoluje `ffmpeg` i tworzy pliki RAW 
 - rozszerzenie `.raw`.
 
 To jest strumien probek wysylany do radia do kompresji AMBE.
+
+Jezeli tempo liter/cyfr rozni sie od zwyklego tempa, folder RAW/AMBE dostaje nazwe w stylu `tempo_1.5_letters_1.2`, zeby nie pomieszac probek ze starszymi ustawieniami.
 
 ## Pliki WAV z RHVoice
 

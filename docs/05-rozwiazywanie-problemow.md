@@ -14,7 +14,8 @@ Potem uruchom `dist\OpenGD77PromptStudio.exe` z PowerShella i sprawdz komunikat.
 
 Jesli zaznaczasz tworzenie mowy, program potrzebuje `ffmpeg.exe`. Mozesz:
 
-- wpisac sciezke w polu `ffmpeg.exe`,
+- uruchomic standardowy EXE, w ktorym ffmpeg jest wbudowany i wykrywany automatycznie,
+- w wersji serwisowej ustawic zmienna `FFMPEG_EXE`,
 - skopiowac `ffmpeg.exe` obok EXE,
 - dodac folder ffmpeg do PATH.
 
@@ -28,7 +29,7 @@ Jezeli plik jest zwyklym pluginem NVDA albo dodatkiem innego syntezatora, progra
 
 Dla zrodla `Dodatek NVDA/RHVoice` potrzebny jest silnik RHVoice. Gotowy EXE z release ma go wbudowanego. Jezeli uzywasz builda bez wbudowanego silnika, program szuka go w tych miejscach:
 
-- sciezka wpisana w polu `RHVoice.dll`,
+- zmienna srodowiskowa `RHVOICE_DLL`,
 - zmienna srodowiskowa `RHVOICE_DLL`,
 - plik `RHVoice.dll` obok EXE,
 - folder `rhvoice\RHVoice.dll` obok EXE,
@@ -49,3 +50,12 @@ Kod usuwa plik, jesli przekroczy limit `0x28C00` bajtow. Pomaga skrocenie komuni
 ## TTSMP3 nie odpowiada
 
 TTSMP3 to zewnetrzna usluga internetowa. Jesli zwraca blad, sprobuj pozniej albo uzyj lokalnego zrodla RHVoice.
+
+
+## Aktualizacja z GitHuba
+
+Zakladka `Aktualizacja i pomoc` sprawdza najnowszy release w repozytorium `kazek5p-git/OpenGD77-PromptStudio`. Aktualizator szuka assetu `OpenGD77PromptStudio.exe`. W gotowym EXE program po pobraniu zamyka sie, podmienia plik i uruchamia ponownie. Przy pracy ze zrodel pobiera EXE do `%APPDATA%\OpenGD77PromptStudio\updates`, ale nie podmienia uruchomionego Pythona.
+
+## Widze sciezke z komputera Kazka
+
+W wersji 0.4.1 domyslne pola nie powinny juz pokazywac `C:\Users\Kazek\...`. Folder roboczy jest tworzony w `%APPDATA%`, wynikowy VPR w dokumentach aktualnego uzytkownika, a pola wyboru `ffmpeg.exe` i `RHVoice.dll` nie sa pokazywane w glownym GUI, bo program wykrywa te skladniki automatycznie. Jesli stara sciezka jest nadal widoczna, pochodzi najpewniej ze starego zapisanego profilu JSON.
