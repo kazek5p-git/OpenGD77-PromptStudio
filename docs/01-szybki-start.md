@@ -13,7 +13,7 @@
 9. Opcjonalnie ustaw `Tempo liter/cyfr`, jezeli pojedyncze litery albo cyfry maja byc wolniejsze lub szybsze niz reszta promptow.
 10. `Alias tempa` zostaw pusty albo wpisz krotka etykiete do nazwy wyniku, na przyklad `szybki` albo `czytelny`.
 11. `Nadpisuj istniejace pliki` zaznacz wtedy, gdy zmieniasz glos, tempo, glosnosc albo teksty i chcesz wygenerowac wszystko od nowa.
-10. Nacisnij `Uruchom Alt+R`.
+12. Nacisnij `Uruchom Alt+R`.
 
 ## Zrodla mowy
 

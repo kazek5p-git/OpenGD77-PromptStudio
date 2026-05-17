@@ -38,6 +38,75 @@ Po wejściu fokusem w ważne pole program aktualizuje tekst statusu. NVDA odczyt
 7. Postęp pracy możesz szybko ustawić fokusem przez `Alt+P`.
 
 
+
+## Opis elementow interfejsu
+
+### Pasek zakladek
+
+`Projekt`, `Mowa`, `Opcje`, `Praca` oraz `Aktualizacja i pomoc` sa radiobuttonami. Oznaczony radiobutton pokazuje aktywna zakladke. `Poprzednia` i `Nastepna` przelaczaja zakladki bez uzywania skrotow klawiaturowych.
+
+### Zakladka Projekt
+
+`Tryb reczny` oznacza, ze ustawiasz wszystko w oknie programu: wordlist, glos, wynik, port i operacje.
+
+`Plik konfiguracyjny CSV` oznacza prace z gotowym plikiem konfiguracji. Po wybraniu tego trybu program wykonuje ustawienia zapisane w CSV, a wiele pol trybu recznego jest pomijanych.
+
+`Profil ustawien` to nazwa profilu JSON. `Zapisz profil` zapisuje aktualne ustawienia, `Wczytaj profil` przywraca zapisany profil, `Usun profil` kasuje wybrany profil, a `Folder profili` otwiera katalog profili w Eksploratorze.
+
+`Plik konfiguracyjny CSV` wskazuje plik z wieloma zadaniami. Uzywaj go tylko w trybie `Plik konfiguracyjny CSV`.
+
+`Wordlist CSV` wskazuje plik z tekstami promptow. To podstawowy plik wejsciowy w trybie recznym.
+
+`Nazwa glosu` jest nazwa profilu RHVoice albo nazwa folderu roboczego na pliki audio. Przyklad: `Kazek`, `Zuza`, `Polish`.
+
+`Plik wynikowy VPR` jest bazowa nazwa pliku wynikowego. Program dopisuje warianty i tempo do nazwy, na przyklad wariant `UV380-like` albo `monochrome`.
+
+`Port COM radia` jest potrzebny przy kodowaniu AMBE przez radio. `Odswiez porty` ponownie wyszukuje porty, a `Lista wykrytych portow` pozwala wybrac port z listy.
+
+`Pobierz / syntezuj audio` tworzy pliki mowy ze zrodla wybranego na zakladce `Mowa`.
+
+`Koduj AMBE w radiu` wysyla probki audio do radia i odbiera zakodowane ramki AMBE. Wymaga podlaczonego radia z OpenGD77 i poprawnego portu COM.
+
+`Zbuduj VPR` sklada gotowe pliki AMBE do pakietu VPR dla radia.
+
+### Zakladka Mowa
+
+`TTSMP3.com` wybiera internetowe zrodlo mowy. Program pobiera audio i konwertuje je lokalnie przez wbudowany ffmpeg.
+
+`RHVoice z dodatku NVDA` wybiera lokalny syntezator z pliku `.nvda-addon`. To jest zalecane, gdy chcesz uzyc glosow takich jak Kazek, Zuza albo inne glosy RHVoice.
+
+`Plik dodatku NVDA` wskazuje plik `.nvda-addon` z glosem RHVoice. Przycisk `Wybierz...` otwiera okno wyboru pliku. `RHVoice.dll` jest wykrywana automatycznie i nie ma osobnego pola w glownym GUI.
+
+### Zakladka Opcje
+
+`Folder roboczy` to miejsce na pliki tymczasowe i posrednie: WAV, RAW, AMBE oraz rozpakowane dodatki NVDA.
+
+`Glosnosc dB` zmienia poziom audio przed kodowaniem. Wartosci dodatnie podbijaja glosnosc, ujemne sciszaja.
+
+`Tempo` ustawia predkosc wszystkich promptow.
+
+`Tempo liter/cyfr` ustawia osobna predkosc pojedynczych liter, cyfr, spacji i kropki. Puste pole oznacza uzycie zwyklego pola `Tempo`.
+
+`Alias tempa` jest tylko etykieta w nazwie pliku wynikowego. Nie zmienia dzwieku.
+
+`Wysokosc RHVoice` zmienia wysokosc glosu dla lokalnej syntezy RHVoice. `1.0` oznacza normalna wysokosc, mniejsza wartosc obniza glos.
+
+`Nadpisuj istniejace pliki` wymusza ponowne tworzenie audio i plikow posrednich. Zaznacz po zmianie glosu, tempa, glosnosci, wysokosci glosu albo tekstow promptow.
+
+`Usun cisze z poczatku` usuwa poczatkowa cisze z probek audio tam, gdzie dany etap przetwarzania moze to zastosowac.
+
+### Zakladka Praca
+
+`Uruchom Alt+R` startuje wybrane operacje. `Zatrzymaj Alt+S` zatrzymuje dzialajacy proces. `Test zaleznosci` sprawdza, czy program widzi potrzebne skladniki, porty i pliki. `Otworz folder` otwiera folder roboczy. `Wyczysc log` kasuje widoczny log. `Zamknij` zamyka program.
+
+`Status programu` podaje ostatni wazny komunikat. `Postep pracy` pokazuje procent i etap pracy. `Log dzialania buildera` zawiera szczegoly uruchomienia, komunikaty bledow i postep przetwarzania.
+
+### Zakladka Aktualizacja i pomoc
+
+`Sprawdz aktualizacje` pyta GitHub Releases o najnowsza wersje programu. `Pobierz i zainstaluj` pobiera nowszy EXE i w wersji uruchomionej jako EXE potrafi podmienic program po zamknieciu. `Releases` otwiera strone wydan. `GitHub` otwiera repozytorium. `Pomoc` otwiera dokumentacje. `O programie` pokazuje wersje, autora i link do repozytorium.
+
+`Status aktualizacji` pokazuje wynik sprawdzania GitHuba, informacje o najnowszym release i ewentualne bledy pobierania.
+
 ## Opcje tempa
 
 Pole `Tempo` ustawia predkosc wszystkich promptow. Pole `Tempo liter/cyfr` jest opcjonalne i dotyczy tylko pojedynczych liter, cyfr, spacji i kropki. Puste pole oznacza, ze litery i cyfry uzyja zwyklego tempa.
