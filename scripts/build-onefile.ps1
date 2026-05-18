@@ -10,6 +10,7 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $PSScriptRoot
 $Source = Join-Path $Root "src\prompt_studio.py"
+$Assets = Join-Path $Root "assets"
 $Dist = Join-Path $Root "dist"
 $Work = Join-Path $Root "build\pyinstaller"
 $Spec = Join-Path $Root "build"
@@ -90,6 +91,11 @@ $args = @(
     "--hidden-import", "serial.tools.list_ports_common",
     "--hidden-import", "wx"
 )
+
+if (Test-Path -LiteralPath $Assets -PathType Container) {
+    Write-Host "Bundled assets: $Assets"
+    $args += @("--add-data", ($Assets + ";assets"))
+}
 
 $bundledRhVoice = ""
 $bundledFfmpeg = ""

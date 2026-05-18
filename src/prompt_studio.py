@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 
 import urllib.request
 import json
@@ -25,7 +25,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.9"
+PROGRAM_VERSION = "0.4.10"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -35,6 +35,7 @@ GITHUB_RELEASES_URL = GITHUB_REPO_URL + "/releases"
 GITHUB_LATEST_RELEASE_API = "https://api.github.com/repos/" + GITHUB_OWNER + "/" + GITHUB_REPO + "/releases/latest"
 GITHUB_EXE_ASSET = "OpenGD77PromptStudio.exe"
 APP_DATA_NAME = "OpenGD77PromptStudio"
+STARTUP_SOUND_FILE = "startup_radio_shortwave_cc0.wav"
 
 
 def appUserDataDir():
@@ -526,6 +527,32 @@ def application_base_dir():
 
 def bundled_resource_dir():
     return getattr(sys, "_MEIPASS", application_base_dir())
+
+
+def bundled_asset_path(file_name):
+    candidates = [
+        os.path.join(bundled_resource_dir(), "assets", file_name),
+        os.path.join(application_base_dir(), "assets", file_name),
+        os.path.join(os.path.dirname(application_base_dir()), "assets", file_name),
+        os.path.join(os.getcwd(), "assets", file_name),
+    ]
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            return candidate
+    return ""
+
+
+def play_startup_sound():
+    if os.name != "nt":
+        return
+    sound_path = bundled_asset_path(STARTUP_SOUND_FILE)
+    if not sound_path:
+        return
+    try:
+        import winsound
+        winsound.PlaySound(sound_path, winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+    except Exception:
+        pass
 
 FLASH_SEND_SIZE = 8
 MAX_USB_TRANSFERT_SIZE = 1024
@@ -2863,6 +2890,7 @@ def run_wx_gui():
     refreshModeState()
     panel.FitInside()
     frame.Show()
+    wx.CallAfter(play_startup_sound)
     wx.CallAfter(focusInitialTabStrip)
     app.MainLoop()
     return 0
@@ -3382,6 +3410,7 @@ def run_tk_gui():
     refreshPorts()
     refreshModeState()
     root.after(100, pumpQueue)
+    root.after(150, play_startup_sound)
     wordlistEntry.focus_set()
     root.mainloop()
     return 0

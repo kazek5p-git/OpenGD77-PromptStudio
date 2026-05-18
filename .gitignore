@@ -8,6 +8,7 @@ dist/
 *.tmp
 *.mp3
 *.wav
+!assets/startup_radio_shortwave_cc0.wav
 *.raw
 *.amb
 *.vpr
