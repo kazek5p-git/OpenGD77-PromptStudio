@@ -3,6 +3,7 @@
 import urllib.request
 import json
 import csv
+import io
 import os, sys
 import time
 import os
@@ -24,7 +25,7 @@ import enum
 from dataclasses import dataclass
 
 PROGRAM_NAME = "OpenGD77 Prompt Studio"
-PROGRAM_VERSION = "0.4.8"
+PROGRAM_VERSION = "0.4.9"
 
 
 GITHUB_OWNER = "kazek5p-git"
@@ -293,6 +294,153 @@ def safeProfileStem(name):
     while "__" in stem:
         stem = stem.replace("__", "_")
     return stem or "domyslny"
+
+
+WORDLIST_REQUIRED_COLUMNS = (
+    "PromptName",
+    "PromptSpeechPrefix",
+    "PromptText",
+    "PromptSpeechPostfix",
+)
+CONFIG_REQUIRED_COLUMNS = (
+    "Wordlist_file",
+    "Voice_name",
+    "Voice_pack_name",
+    "Download",
+    "Encode",
+    "Createpack",
+    "Volume_change_db",
+    "Remove_silence",
+    "Audio_tempo",
+)
+CSV_KNOWN_COLUMNS = set(WORDLIST_REQUIRED_COLUMNS + CONFIG_REQUIRED_COLUMNS + (
+    "Compact_audio_tempo",
+    "Letter_audio_tempo",
+    "Nvda_addon_file",
+    "RHVoice_dll",
+    "RHVoice_pitch",
+))
+CSV_CANONICAL_COLUMNS = {column.lower(): column for column in CSV_KNOWN_COLUMNS}
+
+
+def decodeCsvText(filename):
+    with open(filename, "rb") as f:
+        data = f.read()
+    if not data:
+        return "", "utf-8"
+
+    bomEncodings = (
+        (b"\xef\xbb\xbf", "utf-8-sig"),
+        (b"\xff\xfe\x00\x00", "utf-32-le"),
+        (b"\x00\x00\xfe\xff", "utf-32-be"),
+        (b"\xff\xfe", "utf-16"),
+        (b"\xfe\xff", "utf-16"),
+    )
+    for bom, encoding in bomEncodings:
+        if data.startswith(bom):
+            return data.decode(encoding), encoding
+
+    sample = data[:4096]
+    pairCount = max(1, len(sample) // 2)
+    evenNulls = sample[0::2].count(0)
+    oddNulls = sample[1::2].count(0)
+    if oddNulls > pairCount * 0.35 and evenNulls < pairCount * 0.10:
+        try:
+            return data.decode("utf-16-le"), "utf-16-le"
+        except UnicodeDecodeError:
+            pass
+    if evenNulls > pairCount * 0.35 and oddNulls < pairCount * 0.10:
+        try:
+            return data.decode("utf-16-be"), "utf-16-be"
+        except UnicodeDecodeError:
+            pass
+
+    lastError = None
+    for encoding in ("utf-8-sig", "utf-8", "cp1250", "cp1252"):
+        try:
+            return data.decode(encoding), encoding
+        except UnicodeDecodeError as err:
+            lastError = err
+    try:
+        return data.decode("latin-1"), "latin-1"
+    except UnicodeDecodeError:
+        raise lastError
+
+
+def normalizeCsvColumnName(name):
+    text = str(name or "").replace("\ufeff", "").strip()
+    return CSV_CANONICAL_COLUMNS.get(text.lower(), text)
+
+
+def iterCsvDataLines(text):
+    for line in io.StringIO(text):
+        stripped = line.lstrip("\ufeff \t")
+        if not stripped.strip():
+            continue
+        if stripped.startswith("#"):
+            continue
+        yield line
+
+
+def formatCsvDelimiter(delimiter):
+    if delimiter == "\t":
+        return "tab"
+    if delimiter == ";":
+        return "semicolon"
+    if delimiter == ",":
+        return "comma"
+    return repr(delimiter)
+
+
+def detectCsvDelimiter(lines):
+    if not lines:
+        return ","
+    header = lines[0].lstrip("\ufeff")
+    bestDelimiter = ","
+    bestScore = -1
+    bestCount = -1
+    for delimiter in (",", ";", "\t"):
+        try:
+            fields = next(csv.reader([header], delimiter=delimiter))
+        except Exception:
+            fields = [header]
+        normalized = [normalizeCsvColumnName(field) for field in fields]
+        score = sum(1 for field in normalized if field in CSV_KNOWN_COLUMNS)
+        count = len(fields)
+        if score > bestScore or (score == bestScore and count > bestCount):
+            bestDelimiter = delimiter
+            bestScore = score
+            bestCount = count
+    return bestDelimiter
+
+
+def readCsvDictRows(filename, requiredColumns, label="CSV"):
+    text, encoding = decodeCsvText(filename)
+    lines = list(iterCsvDataLines(text))
+    delimiter = detectCsvDelimiter(lines)
+    reader = csv.DictReader(lines, delimiter=delimiter)
+    fieldnames = [normalizeCsvColumnName(field) for field in (reader.fieldnames or [])]
+    reader.fieldnames = fieldnames
+    missing = [column for column in requiredColumns if column not in fieldnames]
+    if missing:
+        detected = ", ".join(fieldnames) if fieldnames else "brak naglowkow"
+        raise ValueError(
+            label + ": brak wymaganych kolumn: " + ", ".join(missing) +
+            ". Wykryte kolumny: " + detected +
+            ". Kodowanie: " + encoding +
+            ", separator: " + formatCsvDelimiter(delimiter) + "."
+        )
+
+    rows = []
+    for row in reader:
+        normalizedRow = {}
+        for key, value in row.items():
+            if key is None:
+                continue
+            normalizedRow[normalizeCsvColumnName(key)] = "" if value is None else value
+        if any(str(value).strip() for value in normalizedRow.values()):
+            rows.append(normalizedRow)
+    return rows
 
 
 def versionTuple(text):
@@ -1111,28 +1259,25 @@ def synthesizeRhvoiceForWordList(filename, voiceName, addonPath, dllPath=""):
     print("RHVoice relative pitch: " + str(pitch))
     try:
         requestedProfile = voiceName.strip()
-        with open(filename, "r", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(filter(lambda row: row[0] != '#', csvfile))
-            for row in reader:
-                promptName = row['PromptName'].strip()
-                promptText = row['PromptSpeechPrefix'].strip() + row['PromptText'] + row['PromptSpeechPostfix'].strip()
-                wavFileName = voiceName + os.path.sep + promptName + ".wav"
-                rawFileName = voiceTempoDir(voiceName) + os.path.sep + promptName + ".raw"
-                ambeFileName = voiceTempoDir(voiceName) + os.path.sep + promptName + ".amb"
-                if (not os.path.exists(wavFileName)) or overwrite == True:
-                    if not promptText.strip():
-                        writeSilentPromptWav(wavFileName)
-                        print("RHVoice: " + promptName + " -> " + wavFileName + " silence")
-                    else:
-                        usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile, pitch)
-                        print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile + " pitch=" + str(pitch))
-                if (not os.path.exists(rawFileName)) or overwrite == True:
-                    convertToRaw(wavFileName, rawFileName, promptName)
-                    if os.path.exists(ambeFileName):
-                        os.remove(ambeFileName)
+        for row in readCsvDictRows(filename, WORDLIST_REQUIRED_COLUMNS, "Wordlist CSV"):
+            promptName = row['PromptName'].strip()
+            promptText = row['PromptSpeechPrefix'].strip() + row['PromptText'] + row['PromptSpeechPostfix'].strip()
+            wavFileName = voiceName + os.path.sep + promptName + ".wav"
+            rawFileName = voiceTempoDir(voiceName) + os.path.sep + promptName + ".raw"
+            ambeFileName = voiceTempoDir(voiceName) + os.path.sep + promptName + ".amb"
+            if (not os.path.exists(wavFileName)) or overwrite == True:
+                if not promptText.strip():
+                    writeSilentPromptWav(wavFileName)
+                    print("RHVoice: " + promptName + " -> " + wavFileName + " silence")
+                else:
+                    usedProfile = synth.synthesizeToWav(promptText, wavFileName, requestedProfile, pitch)
+                    print("RHVoice: " + promptName + " -> " + wavFileName + " profile=" + usedProfile + " pitch=" + str(pitch))
+            if (not os.path.exists(rawFileName)) or overwrite == True:
+                convertToRaw(wavFileName, rawFileName, promptName)
+                if os.path.exists(ambeFileName):
+                    os.remove(ambeFileName)
     finally:
         synth.close()
-
 def downloadPollyPro(voiceName,fileStub,promptText,speechSpeed):
     global atempo
     retval=True
@@ -1222,31 +1367,27 @@ def downloadSpeechForWordList(filename,voiceName):
     retval = True
     speechSpeed="normal"
 
-    with open(filename,"r",encoding='utf-8') as csvfile:
-        reader = csv.DictReader(filter(lambda row: row[0]!='#', csvfile))
-        for row in reader:
-            promptName = row['PromptName'].strip()
+    for row in readCsvDictRows(filename, WORDLIST_REQUIRED_COLUMNS, "Wordlist CSV"):
+        promptName = row['PromptName'].strip()
+        speechPrefix = row['PromptSpeechPrefix'].strip()
 
-            speechPrefix = row['PromptSpeechPrefix'].strip()
+        ## PollyPro is not working.
+        if ((forceTTSMP3Usage == False) and (speechPrefix != "") and False):
+            #Use VoicePolly as its not a special SSML that it doesnt handle
+            if (speechPrefix.find("<prosody rate=")!=-1):
+                matchObj = re.search(r'\".*\"',speechPrefix)
+                if (matchObj):
+                    speechSpeed = matchObj.group(0)[1:-1]
 
-            ## PollyPro is not working.
-            if ((forceTTSMP3Usage == False) and (speechPrefix != "") and False):
-                #Use VoicePolly as its not a special SSML that it doesnt handle
-                if (speechPrefix.find("<prosody rate=")!=-1):
-                    matchObj = re.search(r'\".*\"',speechPrefix)
-                    if (matchObj):
-                        speechSpeed = matchObj.group(0)[1:-1]
+            downloadPollyPro(voiceName, promptName, row['PromptText'], speechSpeed)
+        else:
+            promptTTSText = row['PromptSpeechPrefix'].strip() +  row['PromptText'] + row['PromptSpeechPostfix'].strip()
 
-                downloadPollyPro(voiceName, promptName, row['PromptText'], speechSpeed)
-            else:
-                promptTTSText = row['PromptSpeechPrefix'].strip() +  row['PromptText'] + row['PromptSpeechPostfix'].strip()
-
-                if (downloadTTSMP3(voiceName,promptName,promptTTSText)==False):
-                    retval=False
-                    break
+            if (downloadTTSMP3(voiceName,promptName,promptTTSText)==False):
+                retval=False
+                break
 
     return retval
-
 def encodeFile(ser,fileStub):
     if ((not os.path.exists(fileStub+".amb")) or overwrite==True):
         convert2AMBE(ser,fileStub+".raw",fileStub+".amb")
@@ -1264,38 +1405,31 @@ def encodeWordList(ser,filename,voiceName,forceReEncode):
 
         print("Encoding using a {}".format(PlatformsNames[int(platformModel)]))
 
-        with open(filename,"r",encoding='utf-8') as csvfile:
-            sendCommand(ser,0, 0, 0, 0, 0, 0, "") # show CPS screen as this disables the radio etc
-            sendCommand(ser,1, 0, 0, 0, 0, 0, "") # Clear Screen
-            sendCommand(ser,3, 0, 0, 0, 0, 0, "") # Render the screen
-            sendCommand(ser,6, 5, 0, 0, 0, 0,  "") # codecInitInternalBuffers()
-            reader = csv.DictReader(filter(lambda row: row[0]!='#', csvfile))
-            for row in reader:
-                promptName = row['PromptName'].strip()
-                fileStub = voiceTempoDir(voiceName) + os.path.sep + promptName
+        sendCommand(ser,0, 0, 0, 0, 0, 0, "") # show CPS screen as this disables the radio etc
+        sendCommand(ser,1, 0, 0, 0, 0, 0, "") # Clear Screen
+        sendCommand(ser,3, 0, 0, 0, 0, 0, "") # Render the screen
+        sendCommand(ser,6, 5, 0, 0, 0, 0,  "") # codecInitInternalBuffers()
+        for row in readCsvDictRows(filename, WORDLIST_REQUIRED_COLUMNS, "Wordlist CSV"):
+            promptName = row['PromptName'].strip()
+            fileStub = voiceTempoDir(voiceName) + os.path.sep + promptName
+            encodeFile(ser,fileStub)
 
-
-                encodeFile(ser,fileStub)
-
-            sendCommand(ser,5, 0, 0, 0, 0, 0, "") # close CPS screen
+        sendCommand(ser,5, 0, 0, 0, 0, 0, "") # close CPS screen
     else:
         print("ERROR: unable to retrieve RadioInfo.")
         sys.exit(1)
-
 def buildDataPack(filename,voiceName,outputFileName):
     flavors = [ "UV380-like", "monochrome" ]
     for flavor in flavors:
         print("Building " + flavor + " ...")
         promptsDict={}#create an empty dictionary
-        with open(filename,"r",encoding='utf-8') as csvfile:
-            reader = csv.DictReader(filter(lambda row: row[0]!='#', csvfile))
-            for row in reader:
-                promptName = row['PromptName'].strip()
-                if (((flavor == "monochrome") and (promptName.startswith("theme_"))) == False):
-                    infile = voiceTempoDir(voiceName) + os.path.sep + promptName + ".amb"
-                    with open(infile,'rb') as f:
-                        promptsDict[promptName] = bytearray(f.read())
-                        f.close()
+        for row in readCsvDictRows(filename, WORDLIST_REQUIRED_COLUMNS, "Wordlist CSV"):
+            promptName = row['PromptName'].strip()
+            if (((flavor == "monochrome") and (promptName.startswith("theme_"))) == False):
+                infile = voiceTempoDir(voiceName) + os.path.sep + promptName + ".amb"
+                with open(infile,'rb') as f:
+                    promptsDict[promptName] = bytearray(f.read())
+                    f.close()
         MAX_PROMPTS = (331 if (flavor == "monochrome") else 368) ## 10 free each as of 2023 09 22
         headerTOCSize = (MAX_PROMPTS * 4) + 4 + 4
         outBuf = bytearray(headerTOCSize)
@@ -1331,7 +1465,6 @@ def buildDataPack(filename,voiceName,outputFileName):
                 fErrorLog.write(errorMsg)
                 fErrorLog.write("\n")
             os.remove(flavoredFilename)
-
 
 def usage(message=""):
     print(PROGRAM_NAME + " v" + PROGRAM_VERSION)
@@ -1455,12 +1588,10 @@ def main(argv=None):
 
     configNeedsDownload = False
     if (configName != ""):
-        with open(configName,"r",encoding='utf-8') as csvfile:
-            reader = csv.DictReader(filter(lambda row: row[0]!='#', csvfile))
-            for row in reader:
-                if row.get('Download', '').strip().lower() == 'y':
-                    configNeedsDownload = True
-                    break
+        for row in readCsvDictRows(configName, CONFIG_REQUIRED_COLUMNS, "Config CSV"):
+            if row.get('Download', '').strip().lower() == 'y':
+                configNeedsDownload = True
+                break
 
     needsFfmpeg = configNeedsDownload or any(opt in ("-T", "-N") for opt, arg in opts)
     if needsFfmpeg and not ffmpegAvailable():
@@ -1471,65 +1602,62 @@ def main(argv=None):
     if (configName!=""):
         print("Using Config file: {}...".format(configName))
 
-        with open(configName,"r",encoding='utf-8') as csvfile:
-            reader = csv.DictReader(filter(lambda row: row[0]!='#', csvfile))
-            for row in reader:
-                wordlistFilename = row['Wordlist_file'].strip()
-                voiceName = row['Voice_name'].strip()
-                voicePackName = row['Voice_pack_name'].strip()
-                download = row['Download'].strip()
-                encode = row['Encode'].strip()
-                createPack = row['Createpack'].strip()
-                gain = row['Volume_change_db'].strip()
-                rs = row['Remove_silence'].strip()
-                cfg_atempo = row['Audio_tempo'].strip()
-                cfg_compact_atempo = (row.get('Compact_audio_tempo') or row.get('Letter_audio_tempo') or '').strip()
-                cfg_nvda_addon = row.get('Nvda_addon_file', '').strip()
-                cfg_rhvoice_dll = row.get('RHVoice_dll', '').strip()
-                cfg_rhvoice_pitch = row.get('RHVoice_pitch', '').strip()
+        for row in readCsvDictRows(configName, CONFIG_REQUIRED_COLUMNS, "Config CSV"):
+            wordlistFilename = row['Wordlist_file'].strip()
+            voiceName = row['Voice_name'].strip()
+            voicePackName = row['Voice_pack_name'].strip()
+            download = row['Download'].strip()
+            encode = row['Encode'].strip()
+            createPack = row['Createpack'].strip()
+            gain = row['Volume_change_db'].strip()
+            rs = row['Remove_silence'].strip()
+            cfg_atempo = row['Audio_tempo'].strip()
+            cfg_compact_atempo = (row.get('Compact_audio_tempo') or row.get('Letter_audio_tempo') or '').strip()
+            cfg_nvda_addon = row.get('Nvda_addon_file', '').strip()
+            cfg_rhvoice_dll = row.get('RHVoice_dll', '').strip()
+            cfg_rhvoice_pitch = row.get('RHVoice_pitch', '').strip()
 
-                ## If Audio_tempo is not set, use the default value
-                if cfg_atempo != '':
-                    atempo = parseAudioTempo(cfg_atempo, "Audio tempo")
-                if cfg_compact_atempo != '':
-                    compactAtempo = parseAudioTempo(cfg_compact_atempo, "Letter/digit tempo")
-                if cfg_rhvoice_pitch != '':
-                    rhvoiceRelativePitch = str(parseRhvoiceRelativePitch(cfg_rhvoice_pitch))
+            ## If Audio_tempo is not set, use the default value
+            if cfg_atempo != '':
+                atempo = parseAudioTempo(cfg_atempo, "Audio tempo")
+            if cfg_compact_atempo != '':
+                compactAtempo = parseAudioTempo(cfg_compact_atempo, "Letter/digit tempo")
+            if cfg_rhvoice_pitch != '':
+                rhvoiceRelativePitch = str(parseRhvoiceRelativePitch(cfg_rhvoice_pitch))
 
-                ## Add audio tempo value to the filename
-                voicePackName = voicePackName.replace('.vpr', '-' + outputTempoLabel() + '.vpr');
+            ## Add audio tempo value to the filename
+            voicePackName = voicePackName.replace('.vpr', '-' + outputTempoLabel() + '.vpr');
 
-                print("Processing " + wordlistFilename+" "+voiceName+" "+voicePackName)
+            print("Processing " + wordlistFilename+" "+voiceName+" "+voicePackName)
 
-                ensureVoiceFolders(voiceName)
+            ensureVoiceFolders(voiceName)
 
-                if (rs=='y' or rs=='Y'):
-                    removeSilenceAtStart = True
+            if (rs=='y' or rs=='Y'):
+                removeSilenceAtStart = True
+            else:
+                removeSilenceAtStart = False
+
+            if (download=='y' or download=='Y'):
+                if cfg_nvda_addon:
+                    try:
+                        synthesizeRhvoiceForWordList(wordlistFilename, voiceName, cfg_nvda_addon, cfg_rhvoice_dll)
+                    except Exception as err:
+                        usage("ERROR: " + str(err))
+                        sys.exit(2)
                 else:
-                    removeSilenceAtStart = False
+                    if (downloadSpeechForWordList(wordlistFilename,voiceName)==False):
+                        sys.exit(2)
 
-                if (download=='y' or download=='Y'):
-                    if cfg_nvda_addon:
-                        try:
-                            synthesizeRhvoiceForWordList(wordlistFilename, voiceName, cfg_nvda_addon, cfg_rhvoice_dll)
-                        except Exception as err:
-                            usage("ERROR: " + str(err))
-                            sys.exit(2)
-                    else:
-                        if (downloadSpeechForWordList(wordlistFilename,voiceName)==False):
-                         sys.exit(2)
+            if (encode=='y' or encode=='Y'):
+                ser = serialInit(serialDev)
 
-                if (encode=='y' or encode=='Y'):
-                    ser = serialInit(serialDev)
-
-                    encodeWordList(ser,wordlistFilename,voiceName,True)
-                    if (ser.is_open):
-                        ser.close()
-                if (createPack=='y' or createPack=='Y'):
-                    buildDataPack(wordlistFilename,voiceName,voicePackName)
+                encodeWordList(ser,wordlistFilename,voiceName,True)
+                if (ser.is_open):
+                    ser.close()
+            if (createPack=='y' or createPack=='Y'):
+                buildDataPack(wordlistFilename,voiceName,voicePackName)
 
         sys.exit(0)
-
 
     if (fileName=="" or voiceName==""):
         usage("ERROR: Filename and Voicename must be specified for all operations")
@@ -1672,9 +1800,7 @@ def run_wx_gui():
         if not path or not os.path.exists(path):
             return 0
         try:
-            with open(path, "r", encoding="utf-8") as csvfile:
-                reader = csv.DictReader(filter(lambda row: row and row[0] != '#', csvfile))
-                return sum(1 for _row in reader)
+            return len(readCsvDictRows(path, WORDLIST_REQUIRED_COLUMNS, "Wordlist CSV"))
         except Exception:
             return 0
 

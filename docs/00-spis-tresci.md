@@ -1,6 +1,6 @@
 # Spis dokumentacji
 
-Dokumentacja dotyczy OpenGD77 Prompt Studio `0.4.8`.
+Dokumentacja dotyczy OpenGD77 Prompt Studio `0.4.9`.
 
 ## Kolejnosc czytania
 
@@ -28,4 +28,5 @@ Dokumentacja dotyczy OpenGD77 Prompt Studio `0.4.8`.
 - Interfejs ma wybor jezyka `Polski`/`English`.
 - Po zmianie jezyka program pyta, czy uruchomic sie ponownie.
 - Standardowy EXE ma wbudowany `ffmpeg.exe` i `RHVoice.dll`.
+- CSV jest wczytywany tolerantnie: UTF-8, UTF-8 z BOM, UTF-16 i Windows-1250 oraz separatory przecinek/srednik/tabulator.
 - Standardowe GUI nie pokazuje pol wyboru `ffmpeg.exe` ani `RHVoice.dll`, bo skladniki sa wykrywane automatycznie.

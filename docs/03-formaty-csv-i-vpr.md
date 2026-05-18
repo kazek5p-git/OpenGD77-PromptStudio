@@ -1,5 +1,24 @@
 # Formaty CSV, probek, profili i VPR
 
+## Kodowanie i separator CSV
+
+Program wczytuje wordlist CSV i config CSV w najczestszych wariantach spotykanych na Windows:
+
+- UTF-8 bez BOM,
+- UTF-8 z BOM,
+- UTF-16 z BOM,
+- UTF-16 bez BOM, jezeli uklad bajtow jednoznacznie wskazuje UTF-16,
+- ANSI/Windows-1250,
+- awaryjnie Windows-1252 i Latin-1.
+
+Separator jest wykrywany automatycznie na podstawie naglowka. Obslugiwane sa:
+
+- przecinek,
+- srednik,
+- tabulator.
+
+Program usuwa niewidoczny znak BOM i spacje z nazw kolumn oraz toleruje wielkosc liter w znanych naglowkach. To oznacza, ze plik zapisany przez Excel, LibreOffice albo Notatnik Windows zwykle powinien wczytac sie bez recznego konwertowania. Nazwy wymaganych kolumn nadal musza miec poprawna tresc, np. `PromptName`, a nie `Prompt Name`.
+
 ## Wordlist CSV
 
 Minimalne kolumny:

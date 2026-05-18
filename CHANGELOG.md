@@ -1,5 +1,11 @@
 ﻿# Changelog
 
+## 0.4.9 - 2026-05-18
+
+- Dodano odporne wczytywanie wordlist i config CSV: UTF-8 bez BOM, UTF-8 z BOM, UTF-16 z BOM, UTF-16 bez BOM oraz typowe kodowania Windows, w tym Windows-1250.
+- Program automatycznie wykrywa separator CSV: przecinek, srednik albo tabulator.
+- Program toleruje BOM, dodatkowe spacje i wielkosc liter w znanych naglowkach CSV. Komunikat o brakujacej kolumnie pokazuje teraz wykryte kolumny, kodowanie i separator, zeby latwiej poprawic faktycznie zly plik.
+
 ## 0.4.8 - 2026-05-18
 
 - Zmieniono dostepne nazwy zakladek: czytnik ekranu najpierw dostaje nazwe zakladki, a numer pozycji jako opis, np. `Projekt`, potem `Zakladka 1 z 5`.

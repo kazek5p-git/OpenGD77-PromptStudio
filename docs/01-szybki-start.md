@@ -17,6 +17,12 @@
 13. Opcjonalnie ustaw `Tempo`, `Tempo liter/cyfr`, `Alias tempa`, `Glosnosc dB`, `Wysokosc RHVoice`, `Nadpisuj istniejace pliki` i `Usun cisze z poczatku`.
 14. Nacisnij `Uruchom Alt+R`.
 
+## Pliki CSV bez kombinowania
+
+Wordlist CSV i config CSV moga byc zapisane jako UTF-8 bez BOM, UTF-8 z BOM, UTF-16 z BOM, UTF-16 bez BOM albo typowy plik ANSI z polskiego Windows, czyli Windows-1250. Program sam wykrywa tez separator: przecinek, srednik albo tabulator.
+
+Nadal potrzebne sa poprawne nazwy kolumn. Dla wordlisty musza to byc `PromptName`, `PromptSpeechPrefix`, `PromptText`, `PromptSpeechPostfix`. Jezeli kolumna jest faktycznie nazwana inaczej, program pokaze wykryte kolumny, kodowanie i separator.
+
 ## Zrodla mowy
 
 `TTSMP3.com` pobiera mowe z internetu, zapisuje MP3 i konwertuje je lokalnie przez wbudowany ffmpeg.

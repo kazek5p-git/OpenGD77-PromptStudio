@@ -6,7 +6,7 @@ Program bazuje na skrypcie `GD77VoicePromptsBuilder.py`, ale jest uporzadkowany 
 
 ## Aktualny release
 
-Aktualna wersja projektu: `0.4.8`.
+Aktualna wersja projektu: `0.4.9`.
 
 - Release: https://github.com/kazek5p-git/OpenGD77-PromptStudio/releases/latest
 - Plik EXE w release: `OpenGD77PromptStudio.exe`
@@ -15,6 +15,7 @@ Aktualna wersja projektu: `0.4.8`.
 ## Co robi program
 
 - Pobiera mowe z TTSMP3 na podstawie pliku wordlist CSV.
+- Wczytuje wordlist i config CSV w typowych formatach: UTF-8, UTF-8 z BOM, UTF-16 oraz ANSI/Windows-1250; automatycznie wykrywa przecinek, srednik albo tabulator.
 - Generuje mowe lokalnie z glosu RHVoice dostarczonego jako `.nvda-addon`.
 - Pozwala wybrac profil glosu RHVoice, np. Kazek, Zuza, Natan, jezeli taki profil jest w dodatku.
 - Pozwala regulowac wysokosc glosu RHVoice przy lokalnej syntezie.
@@ -34,7 +35,7 @@ Aktualna wersja projektu: `0.4.8`.
 1. Pobierz `OpenGD77PromptStudio.exe` z najnowszego release GitHub.
 2. Uruchom EXE.
 3. Opcjonalnie ustaw `Jezyk interfejsu` na `Polski` albo `English`. Po zmianie program zapyta o restart.
-4. W trybie recznym wybierz `Wordlist CSV`.
+4. W trybie recznym wybierz `Wordlist CSV`. Plik moze byc zapisany jako UTF-8, UTF-8 z BOM, UTF-16 albo ANSI/Windows-1250; separator moze byc przecinkiem, srednikiem albo tabulatorem.
 5. Wpisz nazwe glosu lub folderu, np. `Polish`, `Kazek`, `Zuza` albo `Natan`.
 6. Wybierz zrodlo mowy: `TTSMP3.com` albo `RHVoice z dodatku NVDA`.
 7. Przy zrodle RHVoice wskaz plik `.nvda-addon` z glosem.

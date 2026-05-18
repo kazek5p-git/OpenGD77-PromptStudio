@@ -12,6 +12,12 @@ powershell -ExecutionPolicy Bypass -File .\scripts\build-onefile.ps1 -Console
 
 Potem uruchom `dist\OpenGD77PromptStudio.exe` z PowerShella i sprawdz komunikat bledu.
 
+## CSV nie wczytuje sie albo pokazuje `PromptName`
+
+Od wersji `0.4.9` program sam wykrywa typowe kodowania CSV: UTF-8 bez BOM, UTF-8 z BOM, UTF-16 z BOM, UTF-16 bez BOM oraz ANSI/Windows-1250. Sam wykrywa tez separator: przecinek, srednik albo tabulator.
+
+Jezeli blad nadal mowi o brakujacej kolumnie, to najczesciej problemem nie jest kodowanie, tylko faktyczna nazwa naglowka. Dla wordlisty wymagane sa dokladnie: `PromptName`, `PromptSpeechPrefix`, `PromptText`, `PromptSpeechPostfix`. Komunikat bledu pokazuje wykryte kolumny, kodowanie i separator.
+
 ## Windows blokuje pobrany EXE
 
 Po pobraniu z internetu Windows moze pokazac SmartScreen albo oznaczyc plik jako pobrany z sieci. Jezeli ufasz plikowi z release, odblokuj go we wlasciwosciach pliku albo uruchom mimo ostrzezenia.
